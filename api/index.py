@@ -8,7 +8,7 @@ app = Flask(__name__)
 CORS(app)
 
 # MongoDB 연결
-MONGODB_URI = "mongodb+srv://attendance_user:Ilovekwu123!@attendance-cluster.n2vufnx.mongodb.net/?appName=attendance-cluster"
+MONGODB_URI = "mongodb+srv://attendance_user:Ilovekwu123!@attendance-cluster.n2vufnx.mongodb.net/attendance_db?retryWrites=true&w=majority"
 
 def get_db():
     client = MongoClient(MONGODB_URI)
