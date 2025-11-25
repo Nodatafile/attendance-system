@@ -91,6 +91,24 @@ def initialize_database():
                 "phone": "010-3333-4444",
                 "created_at": datetime.now(),
                 "updated_at": datetime.now()
+            },
+            {
+                "student_id": "20240004",
+                "name": "정수진",
+                "major": "디자인학과",
+                "email": "jung@school.ac.kr",
+                "phone": "010-4444-5555",
+                "created_at": datetime.now(),
+                "updated_at": datetime.now()
+            },
+            {
+                "student_id": "20240005",
+                "name": "최윤호",
+                "major": "영어영문학과",
+                "email": "choi@school.ac.kr",
+                "phone": "010-5555-6666",
+                "created_at": datetime.now(),
+                "updated_at": datetime.now()
             }
         ]
         
@@ -105,12 +123,26 @@ def initialize_database():
         ]
         
         sample_attendance = [
+            # 1주차
             {"student_id": "20240001", "week_id": 1, "status": "출석", "date": "2024-03-01", "timestamp": datetime.now()},
             {"student_id": "20240002", "week_id": 1, "status": "출석", "date": "2024-03-01", "timestamp": datetime.now()},
             {"student_id": "20240003", "week_id": 1, "status": "지각", "date": "2024-03-01", "timestamp": datetime.now()},
+            {"student_id": "20240004", "week_id": 1, "status": "출석", "date": "2024-03-01", "timestamp": datetime.now()},
+            {"student_id": "20240005", "week_id": 1, "status": "결석", "date": "2024-03-01", "timestamp": datetime.now()},
+            
+            # 2주차
             {"student_id": "20240001", "week_id": 2, "status": "출석", "date": "2024-03-08", "timestamp": datetime.now()},
             {"student_id": "20240002", "week_id": 2, "status": "조퇴", "date": "2024-03-08", "timestamp": datetime.now()},
-            {"student_id": "20240003", "week_id": 2, "status": "출석", "date": "2024-03-08", "timestamp": datetime.now()}
+            {"student_id": "20240003", "week_id": 2, "status": "출석", "date": "2024-03-08", "timestamp": datetime.now()},
+            {"student_id": "20240004", "week_id": 2, "status": "출석", "date": "2024-03-08", "timestamp": datetime.now()},
+            {"student_id": "20240005", "week_id": 2, "status": "출석", "date": "2024-03-08", "timestamp": datetime.now()},
+            
+            # 3주차
+            {"student_id": "20240001", "week_id": 3, "status": "출석", "date": "2024-03-15", "timestamp": datetime.now()},
+            {"student_id": "20240002", "week_id": 3, "status": "출석", "date": "2024-03-15", "timestamp": datetime.now()},
+            {"student_id": "20240003", "week_id": 3, "status": "결석", "date": "2024-03-15", "timestamp": datetime.now()},
+            {"student_id": "20240004", "week_id": 3, "status": "출석", "date": "2024-03-15", "timestamp": datetime.now()},
+            {"student_id": "20240005", "week_id": 3, "status": "출석", "date": "2024-03-15", "timestamp": datetime.now()}
         ]
         
         # 기존 데이터 삭제
