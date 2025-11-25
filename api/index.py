@@ -12,14 +12,22 @@ CORS(app)
 MONGODB_URI = "mongodb+srv://attendance_user:Ilovekwu123!@attendance-cluster.n2vufnx.mongodb.net/?appName=attendance-cluster"
 
 def get_db():
-    client = MongoClient(MONGODB_URI)
-    return client.attendance_db
+    try:
+        client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
+        # 연결 테스트
+        client.admin.command('ismaster')
+        return client.attendance_db
+    except Exception as e:
+        print(f"MongoDB 연결 실패: {e}")
+        return None
 
 def initialize_database():
     """데이터베이스 초기화 - 테이블(컬렉션)과 풍부한 샘플 데이터 생성"""
     try:
         db = get_db()
-        
+        if db is None:
+            return False
+            
         # 풍부한 샘플 학생 데이터
         sample_students = [
             {
@@ -45,38 +53,6 @@ def initialize_database():
                 "email": "park@school.ac.kr",
                 "phone": "010-3333-4444",
                 "created_at": datetime.now()
-            },
-            {
-                "student_id": "20240004",
-                "name": "정수진",
-                "major": "디자인학과",
-                "email": "jung@school.ac.kr",
-                "phone": "010-4444-5555",
-                "created_at": datetime.now()
-            },
-            {
-                "student_id": "20240005",
-                "name": "최윤호",
-                "major": "영어영문학과",
-                "email": "choi@school.ac.kr",
-                "phone": "010-5555-6666",
-                "created_at": datetime.now()
-            },
-            {
-                "student_id": "20240006",
-                "name": "한지민", 
-                "major": "법학과",
-                "email": "han@school.ac.kr",
-                "phone": "010-6666-7777",
-                "created_at": datetime.now()
-            },
-            {
-                "student_id": "20240007",
-                "name": "송민준",
-                "major": "의학과",
-                "email": "song@school.ac.kr", 
-                "phone": "010-7777-8888",
-                "created_at": datetime.now()
             }
         ]
         
@@ -84,72 +60,16 @@ def initialize_database():
         sample_weeks = [
             {"week_id": 1, "week_name": "1주차"},
             {"week_id": 2, "week_name": "2주차"},
-            {"week_id": 3, "week_name": "3주차"},
-            {"week_id": 4, "week_name": "4주차"},
-            {"week_id": 5, "week_name": "5주차"},
-            {"week_id": 6, "week_name": "6주차"},
-            {"week_id": 7, "week_name": "7주차"}
+            {"week_id": 3, "week_name": "3주차"}
         ]
         
-        # 풍부한 샘플 출석 데이터 (모든 학생 x 여러 주차)
+        # 샘플 출석 데이터
         sample_attendance = [
-            # 1주차 출석 데이터
             {"student_id": "20240001", "week_id": 1, "status": "출석", "date": "2024-03-01", "timestamp": datetime.now()},
             {"student_id": "20240002", "week_id": 1, "status": "출석", "date": "2024-03-01", "timestamp": datetime.now()},
             {"student_id": "20240003", "week_id": 1, "status": "지각", "date": "2024-03-01", "timestamp": datetime.now()},
-            {"student_id": "20240004", "week_id": 1, "status": "출석", "date": "2024-03-01", "timestamp": datetime.now()},
-            {"student_id": "20240005", "week_id": 1, "status": "결석", "date": "2024-03-01", "timestamp": datetime.now()},
-            {"student_id": "20240006", "week_id": 1, "status": "출석", "date": "2024-03-01", "timestamp": datetime.now()},
-            {"student_id": "20240007", "week_id": 1, "status": "출석", "date": "2024-03-01", "timestamp": datetime.now()},
-            
-            # 2주차 출석 데이터
             {"student_id": "20240001", "week_id": 2, "status": "출석", "date": "2024-03-08", "timestamp": datetime.now()},
-            {"student_id": "20240002", "week_id": 2, "status": "조퇴", "date": "2024-03-08", "timestamp": datetime.now()},
-            {"student_id": "20240003", "week_id": 2, "status": "출석", "date": "2024-03-08", "timestamp": datetime.now()},
-            {"student_id": "20240004", "week_id": 2, "status": "출석", "date": "2024-03-08", "timestamp": datetime.now()},
-            {"student_id": "20240005", "week_id": 2, "status": "출석", "date": "2024-03-08", "timestamp": datetime.now()},
-            {"student_id": "20240006", "week_id": 2, "status": "지각", "date": "2024-03-08", "timestamp": datetime.now()},
-            {"student_id": "20240007", "week_id": 2, "status": "결석", "date": "2024-03-08", "timestamp": datetime.now()},
-            
-            # 3주차 출석 데이터
-            {"student_id": "20240001", "week_id": 3, "status": "출석", "date": "2024-03-15", "timestamp": datetime.now()},
-            {"student_id": "20240002", "week_id": 3, "status": "출석", "date": "2024-03-15", "timestamp": datetime.now()},
-            {"student_id": "20240003", "week_id": 3, "status": "결석", "date": "2024-03-15", "timestamp": datetime.now()},
-            {"student_id": "20240004", "week_id": 3, "status": "출석", "date": "2024-03-15", "timestamp": datetime.now()},
-            {"student_id": "20240005", "week_id": 3, "status": "출석", "date": "2024-03-15", "timestamp": datetime.now()},
-            {"student_id": "20240006", "week_id": 3, "status": "출석", "date": "2024-03-15", "timestamp": datetime.now()},
-            {"student_id": "20240007", "week_id": 3, "status": "지각", "date": "2024-03-15", "timestamp": datetime.now()},
-            
-            # 4주차 출석 데이터
-            {"student_id": "20240001", "week_id": 4, "status": "출석", "date": "2024-03-22", "timestamp": datetime.now()},
-            {"student_id": "20240002", "week_id": 4, "status": "출석", "date": "2024-03-22", "timestamp": datetime.now()},
-            {"student_id": "20240003", "week_id": 4, "status": "출석", "date": "2024-03-22", "timestamp": datetime.now()},
-            {"student_id": "20240004", "week_id": 4, "status": "지각", "date": "2024-03-22", "timestamp": datetime.now()},
-            {"student_id": "20240005", "week_id": 4, "status": "결석", "date": "2024-03-22", "timestamp": datetime.now()},
-            {"student_id": "20240006", "week_id": 4, "status": "출석", "date": "2024-03-22", "timestamp": datetime.now()},
-            {"student_id": "20240007", "week_id": 4, "status": "출석", "date": "2024-03-22", "timestamp": datetime.now()},
-            
-            # 5주차 출석 데이터
-            {"student_id": "20240001", "week_id": 5, "status": "조퇴", "date": "2024-03-29", "timestamp": datetime.now()},
-            {"student_id": "20240002", "week_id": 5, "status": "출석", "date": "2024-03-29", "timestamp": datetime.now()},
-            {"student_id": "20240003", "week_id": 5, "status": "출석", "date": "2024-03-29", "timestamp": datetime.now()},
-            {"student_id": "20240004", "week_id": 5, "status": "출석", "date": "2024-03-29", "timestamp": datetime.now()},
-            {"student_id": "20240005", "week_id": 5, "status": "출석", "date": "2024-03-29", "timestamp": datetime.now()},
-            {"student_id": "20240006", "week_id": 5, "status": "지각", "date": "2024-03-29", "timestamp": datetime.now()},
-            {"student_id": "20240007", "week_id": 5, "status": "출석", "date": "2024-03-29", "timestamp": datetime.now()},
-            
-            # 6주차 출석 데이터 (일부만)
-            {"student_id": "20240001", "week_id": 6, "status": "출석", "date": "2024-04-05", "timestamp": datetime.now()},
-            {"student_id": "20240002", "week_id": 6, "status": "출석", "date": "2024-04-05", "timestamp": datetime.now()},
-            {"student_id": "20240004", "week_id": 6, "status": "결석", "date": "2024-04-05", "timestamp": datetime.now()},
-            {"student_id": "20240006", "week_id": 6, "status": "출석", "date": "2024-04-05", "timestamp": datetime.now()},
-            {"student_id": "20240007", "week_id": 6, "status": "출석", "date": "2024-04-05", "timestamp": datetime.now()},
-            
-            # 7주차 출석 데이터 (일부만)
-            {"student_id": "20240001", "week_id": 7, "status": "출석", "date": "2024-04-12", "timestamp": datetime.now()},
-            {"student_id": "20240003", "week_id": 7, "status": "출석", "date": "2024-04-12", "timestamp": datetime.now()},
-            {"student_id": "20240005", "week_id": 7, "status": "지각", "date": "2024-04-12", "timestamp": datetime.now()},
-            {"student_id": "20240007", "week_id": 7, "status": "출석", "date": "2024-04-12", "timestamp": datetime.now()}
+            {"student_id": "20240002", "week_id": 2, "status": "조퇴", "date": "2024-03-08", "timestamp": datetime.now()}
         ]
         
         # 기존 데이터 삭제
@@ -171,22 +91,23 @@ def initialize_database():
 
 @app.route('/')
 def home():
-    # 첫 요청시 데이터베이스 초기화 체크
-    try:
-        db = get_db()
-        if db.students.count_documents({}) == 0:
-            initialize_database()
-            print("✅ 테스트 데이터 자동 생성 완료!")
-    except Exception as e:
-        print(f"자동 데이터 생성 실패: {e}")
-    
     return jsonify({
         "message": "🎓 출석 관리 시스템 API",
         "status": "작동중",
         "database": "MongoDB",
         "version": "1.0.0",
-        "test_data": "자동 생성됨"
+        "endpoints": [
+            "/api/students",
+            "/api/attendance", 
+            "/api/init-db",
+            "/api/stats/overview"
+        ]
     })
+
+# favicon.ico 요청 처리
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
 
 @app.route('/api/init-db', methods=['POST'])
 def init_db():
@@ -196,10 +117,9 @@ def init_db():
         return jsonify({
             "success": True,
             "message": "✅ 데이터베이스 초기화 완료!",
-            "students_added": 7,
-            "weeks_added": 7,
-            "attendance_added": 40,
-            "collections": ["students", "weeks", "attendance"]
+            "students_added": 3,
+            "weeks_added": 3,
+            "attendance_added": 5
         })
     else:
         return jsonify({
@@ -214,6 +134,9 @@ def get_students():
     """모든 학생 조회"""
     try:
         db = get_db()
+        if db is None:
+            return jsonify({"success": False, "error": "데이터베이스 연결 실패"}), 500
+            
         students = list(db.students.find().sort("student_id", 1))
         for student in students:
             student['_id'] = str(student['_id'])
@@ -223,12 +146,161 @@ def get_students():
             "count": len(students)
         })
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        return jsonify({"success": False, "error": str(e)}), 500
 
-# ... (나머지 API 함수들은 이전과 동일하게 유지)
-# get_student, update_student, delete_student, get_attendance, 
-# get_student_attendance, check_attendance, delete_attendance,
-# get_attendance_board, get_stats_overview 함수들
+@app.route('/api/students', methods=['POST'])
+def add_student():
+    """새 학생 추가"""
+    try:
+        data = request.json
+        db = get_db()
+        if db is None:
+            return jsonify({"success": False, "error": "데이터베이스 연결 실패"}), 500
+        
+        # 필수 필드 검증
+        if not data.get('student_id') or not data.get('name') or not data.get('major'):
+            return jsonify({
+                "success": False,
+                "error": "학번, 이름, 학과는 필수 입력 항목입니다"
+            }), 400
+        
+        # 학번 중복 검사
+        existing_student = db.students.find_one({"student_id": data.get('student_id')})
+        if existing_student:
+            return jsonify({
+                "success": False,
+                "error": "이미 존재하는 학번입니다"
+            }), 400
+        
+        student_data = {
+            "student_id": data.get('student_id'),
+            "name": data.get('name'),
+            "major": data.get('major'),
+            "email": data.get('email'),
+            "phone": data.get('phone'),
+            "created_at": datetime.now(),
+            "updated_at": datetime.now()
+        }
+        
+        result = db.students.insert_one(student_data)
+        
+        return jsonify({
+            "success": True,
+            "message": "학생이 성공적으로 추가되었습니다",
+            "data": {
+                "_id": str(result.inserted_id),
+                **student_data
+            }
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ===== 출석 관리 API =====
+
+@app.route('/api/attendance', methods=['GET'])
+def get_attendance():
+    """모든 출석 기록 조회"""
+    try:
+        db = get_db()
+        if db is None:
+            return jsonify({"success": False, "error": "데이터베이스 연결 실패"}), 500
+        
+        # 간단한 쿼리로 데이터 확인
+        attendance_data = list(db.attendance.find().sort("student_id", 1))
+        
+        for record in attendance_data:
+            record['_id'] = str(record['_id'])
+        
+        return jsonify({
+            "success": True,
+            "data": attendance_data,
+            "count": len(attendance_data)
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/attendance/check', methods=['POST'])
+def check_attendance():
+    """출석 체크"""
+    try:
+        data = request.json
+        db = get_db()
+        if db is None:
+            return jsonify({"success": False, "error": "데이터베이스 연결 실패"}), 500
+        
+        # 필수 필드 검증
+        if not data.get('student_id') or not data.get('week_id'):
+            return jsonify({
+                "success": False,
+                "error": "학번과 주차는 필수 입력 항목입니다"
+            }), 400
+        
+        attendance_record = {
+            "student_id": data.get('student_id'),
+            "week_id": data.get('week_id'),
+            "status": data.get('status', '출석'),
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "timestamp": datetime.now()
+        }
+        
+        # 기존 기록 업데이트 또는 새로 추가
+        db.attendance.update_one(
+            {
+                "student_id": attendance_record["student_id"],
+                "week_id": attendance_record["week_id"]
+            },
+            {"$set": attendance_record},
+            upsert=True
+        )
+        
+        return jsonify({
+            "success": True, 
+            "message": "출석이 체크되었습니다",
+            "data": attendance_record
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ===== 통계 API =====
+
+@app.route('/api/stats/overview', methods=['GET'])
+def get_stats_overview():
+    """전체 통계"""
+    try:
+        db = get_db()
+        if db is None:
+            return jsonify({"success": False, "error": "데이터베이스 연결 실패"}), 500
+        
+        total_students = db.students.count_documents({})
+        total_attendance = db.attendance.count_documents({})
+        
+        # 상태별 분포
+        status_distribution = {
+            "출석": db.attendance.count_documents({"status": "출석"}),
+            "결석": db.attendance.count_documents({"status": "결석"}),
+            "지각": db.attendance.count_documents({"status": "지각"}),
+            "조퇴": db.attendance.count_documents({"status": "조퇴"})
+        }
+        
+        total_present = status_distribution["출석"]
+        overall_rate = round((total_present / total_attendance) * 100, 2) if total_attendance > 0 else 0
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "total_students": total_students,
+                "total_attendance_records": total_attendance,
+                "overall_attendance_rate": overall_rate,
+                "status_distribution": status_distribution
+            }
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# 건강 상태 체크 엔드포인트
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
 
 if __name__ == '__main__':
     app.run(debug=True)
