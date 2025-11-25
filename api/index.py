@@ -130,9 +130,8 @@ def home():
         "version": "1.0.0",
         "endpoints": [
             "/api/students",
-            "/api/attendance", 
-            "/api/init-db",
-            "/api/stats/overview"
+            "/api/attendance-board", 
+            "/api/init-db"
         ]
     })
 
@@ -158,7 +157,56 @@ def init_db():
             "error": "데이터베이스 초기화 실패"
         })
 
-# ===== 학생 관리 API =====
+# ===== 프론트엔드 맞춤 API =====
+
+@app.route('/api/attendance-board', methods=['GET'])
+def get_attendance_board():
+    """출석부 전체 데이터 """
+    try:
+        db = get_db()
+        if db is None:
+            return jsonify({"success": False, "error": "데이터베이스 연결 실패"}), 500
+        
+        # 쿼리 파라미터 처리
+        week = request.args.get('week', 1, type=int)  # 기본값 1주차
+        
+        # 학생 데이터 조회
+        students = list(db.students.find().sort("student_id", 1))
+        
+        # 해당 주차 출석 데이터 조회
+        attendance_data = list(db.attendance.find({"week_id": week}))
+        
+        # 프론트엔드 맞춤형 데이터 변환
+        result = []
+        for index, student in enumerate(students, 1):
+            # 해당 학생의 출석 기록 찾기
+            attendance_record = next(
+                (a for a in attendance_data if a["student_id"] == student["student_id"]),
+                None
+            )
+            
+            # 출석 상태 변환 (출석=true, 그외=false)
+            is_attendance = attendance_record["status"] == "출석" if attendance_record else False
+            
+            # 프론트엔드 맞춤형 포맷
+            student_data = {
+                "number": index,  # 번호 (1부터 시작)
+                "name": student["name"],
+                "student_id": int(student["student_id"]),  # 숫자로 변환
+                "department": student["major"],
+                "is_attendance": is_attentionce
+            }
+            result.append(student_data)
+        
+        return jsonify({
+            "success": True,
+            "data": result,
+            "week": week,
+            "count": len(result)
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/students', methods=['GET'])
 def get_students():
@@ -169,255 +217,23 @@ def get_students():
             return jsonify({"success": False, "error": "데이터베이스 연결 실패"}), 500
             
         students = list(db.students.find().sort("student_id", 1))
-        for student in students:
-            student['_id'] = str(student['_id'])
+        
+        # 프론트엔드 맞춤형 데이터 변환
+        result = []
+        for index, student in enumerate(students, 1):
+            student_data = {
+                "number": index,
+                "name": student["name"],
+                "student_id": int(student["student_id"]),
+                "department": student["major"],
+                "is_attendance": False  # 기본값
+            }
+            result.append(student_data)
+        
         return jsonify({
             "success": True, 
-            "data": students,
-            "count": len(students)
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-# ===== 출석 관리 API =====
-
-@app.route('/api/attendance', methods=['GET'])
-def get_attendance():
-    """모든 출석 기록 조회 (쿼리 파라미터 지원)"""
-    try:
-        db = get_db()
-        if db is None:
-            return jsonify({"success": False, "error": "데이터베이스 연결 실패"}), 500
-        
-        # 쿼리 파라미터 처리
-        week = request.args.get('week', type=int)
-        student_id = request.args.get('student_id')
-        status = request.args.get('status')
-        
-        # 필터 조건 구성
-        filter_condition = {}
-        if week:
-            filter_condition['week_id'] = week
-        if student_id:
-            filter_condition['student_id'] = student_id
-        if status:
-            filter_condition['status'] = status
-        
-        # 학생 정보와 함께 출석 데이터 조회
-        pipeline = [
-            {
-                "$match": filter_condition
-            },
-            {
-                "$lookup": {
-                    "from": "students",
-                    "localField": "student_id",
-                    "foreignField": "student_id",
-                    "as": "student_info"
-                }
-            },
-            {
-                "$unwind": "$student_info"
-            },
-            {
-                "$lookup": {
-                    "from": "weeks",
-                    "localField": "week_id",
-                    "foreignField": "week_id",
-                    "as": "week_info"
-                }
-            },
-            {
-                "$unwind": "$week_info"
-            },
-            {
-                "$project": {
-                    "_id": 1,
-                    "student_id": 1,
-                    "student_name": "$student_info.name",
-                    "student_major": "$student_info.major",
-                    "week_id": 1,
-                    "week_name": "$week_info.week_name",
-                    "status": 1,
-                    "date": 1,
-                    "timestamp": 1
-                }
-            },
-            {
-                "$sort": {"student_id": 1, "week_id": 1}
-            }
-        ]
-        
-        attendance_data = list(db.attendance.aggregate(pipeline))
-        
-        for record in attendance_data:
-            record['_id'] = str(record['_id'])
-        
-        return jsonify({
-            "success": True,
-            "data": attendance_data,
-            "count": len(attendance_data),
-            "filters": {
-                "week": week,
-                "student_id": student_id,
-                "status": status
-            }
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route('/api/attendance/student/<student_id>', methods=['GET'])
-def get_student_attendance(student_id):
-    """특정 학생의 출석 기록 조회"""
-    try:
-        db = get_db()
-        if db is None:
-            return jsonify({"success": False, "error": "데이터베이스 연결 실패"}), 500
-        
-        # 쿼리 파라미터 처리 (주차 필터)
-        week = request.args.get('week', type=int)
-        
-        filter_condition = {"student_id": student_id}
-        if week:
-            filter_condition['week_id'] = week
-        
-        pipeline = [
-            {
-                "$match": filter_condition
-            },
-            {
-                "$lookup": {
-                    "from": "weeks",
-                    "localField": "week_id",
-                    "foreignField": "week_id",
-                    "as": "week_info"
-                }
-            },
-            {
-                "$unwind": "$week_info"
-            },
-            {
-                "$project": {
-                    "_id": 1,
-                    "week_id": 1,
-                    "week_name": "$week_info.week_name",
-                    "status": 1,
-                    "date": 1,
-                    "timestamp": 1
-                }
-            },
-            {
-                "$sort": {"week_id": 1}
-            }
-        ]
-        
-        attendance_data = list(db.attendance.aggregate(pipeline))
-        
-        for record in attendance_data:
-            record['_id'] = str(record['_id'])
-        
-        # 학생 정보 조회
-        student = db.students.find_one({"student_id": student_id})
-        if student:
-            student['_id'] = str(student['_id'])
-        
-        # 통계 계산
-        total_weeks = 5
-        present_count = len([a for a in attendance_data if a["status"] == "출석"])
-        attendance_rate = round((present_count / total_weeks) * 100, 2) if total_weeks > 0 else 0
-        
-        return jsonify({
-            "success": True,
-            "student": student,
-            "data": attendance_data,
-            "summary": {
-                "total_weeks": total_weeks,
-                "present_count": present_count,
-                "absent_count": total_weeks - present_count,
-                "attendance_rate": attendance_rate
-            },
-            "filters": {
-                "week": week
-            }
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route('/api/attendance/week/<int:week_id>', methods=['GET'])
-def get_week_attendance(week_id):
-    """특정 주차의 출석 기록 조회"""
-    try:
-        db = get_db()
-        if db is None:
-            return jsonify({"success": False, "error": "데이터베이스 연결 실패"}), 500
-        
-        pipeline = [
-            {
-                "$match": {"week_id": week_id}
-            },
-            {
-                "$lookup": {
-                    "from": "students",
-                    "localField": "student_id",
-                    "foreignField": "student_id",
-                    "as": "student_info"
-                }
-            },
-            {
-                "$unwind": "$student_info"
-            },
-            {
-                "$lookup": {
-                    "from": "weeks",
-                    "localField": "week_id",
-                    "foreignField": "week_id",
-                    "as": "week_info"
-                }
-            },
-            {
-                "$unwind": "$week_info"
-            },
-            {
-                "$project": {
-                    "_id": 1,
-                    "student_id": 1,
-                    "student_name": "$student_info.name",
-                    "student_major": "$student_info.major",
-                    "week_id": 1,
-                    "week_name": "$week_info.week_name",
-                    "status": 1,
-                    "date": 1,
-                    "timestamp": 1
-                }
-            },
-            {
-                "$sort": {"student_id": 1}
-            }
-        ]
-        
-        attendance_data = list(db.attendance.aggregate(pipeline))
-        
-        for record in attendance_data:
-            record['_id'] = str(record['_id'])
-        
-        # 통계 계산
-        total_students = db.students.count_documents({})
-        present_count = len([a for a in attendance_data if a["status"] == "출석"])
-        attendance_rate = round((present_count / total_students) * 100, 2) if total_students > 0 else 0
-        
-        return jsonify({
-            "success": True,
-            "week": {
-                "week_id": week_id,
-                "week_name": f"{week_id}주차"
-            },
-            "data": attendance_data,
-            "summary": {
-                "total_students": total_students,
-                "present_count": present_count,
-                "absent_count": total_students - present_count,
-                "attendance_rate": attendance_rate
-            }
+            "data": result,
+            "count": len(result)
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -438,10 +254,13 @@ def check_attendance():
                 "error": "학번과 주차는 필수 입력 항목입니다"
             }), 400
         
+        # student_id를 문자열로 변환 (DB에는 문자열로 저장됨)
+        student_id_str = str(data.get('student_id'))
+        
         attendance_record = {
-            "student_id": data.get('student_id'),
+            "student_id": student_id_str,
             "week_id": data.get('week_id'),
-            "status": data.get('status', '출석'),
+            "status": "출석" if data.get('is_attendance', True) else "결석",
             "date": datetime.now().strftime("%Y-%m-%d"),
             "timestamp": datetime.now()
         }
@@ -459,42 +278,65 @@ def check_attendance():
         return jsonify({
             "success": True, 
             "message": "출석이 체크되었습니다",
-            "data": attendance_record
+            "data": {
+                "student_id": int(attendance_record["student_id"]),
+                "week_id": attendance_record["week_id"],
+                "is_attendance": attendance_record["status"] == "출석"
+            }
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
-# ===== 통계 API =====
-
-@app.route('/api/stats/overview', methods=['GET'])
-def get_stats_overview():
-    """전체 통계"""
+@app.route('/api/attendance/status', methods=['GET'])
+def get_attendance_status():
+    """특정 주차의 출석 상태 조회"""
     try:
         db = get_db()
         if db is None:
             return jsonify({"success": False, "error": "데이터베이스 연결 실패"}), 500
         
-        total_students = db.students.count_documents({})
-        total_attendance = db.attendance.count_documents({})
+        # 쿼리 파라미터 처리
+        week = request.args.get('week', 1, type=int)
         
-        # 상태별 분포
-        status_distribution = {
-            "출석": db.attendance.count_documents({"status": "출석"}),
-            "결석": db.attendance.count_documents({"status": "결석"}),
-            "지각": db.attendance.count_documents({"status": "지각"}),
-            "조퇴": db.attendance.count_documents({"status": "조퇴"})
-        }
+        # 학생 데이터와 출석 데이터 조회
+        students = list(db.students.find().sort("student_id", 1))
+        attendance_data = list(db.attendance.find({"week_id": week}))
         
-        total_present = status_distribution["출석"]
-        overall_rate = round((total_present / total_attendance) * 100, 2) if total_attendance > 0 else 0
+        # 프론트엔드 맞춤형 데이터 변환
+        result = []
+        for index, student in enumerate(students, 1):
+            # 해당 학생의 출석 기록 찾기
+            attendance_record = next(
+                (a for a in attendance_data if a["student_id"] == student["student_id"]),
+                None
+            )
+            
+            # 출석 상태 변환
+            is_attendance = attendance_record["status"] == "출석" if attendance_record else False
+            
+            student_data = {
+                "number": index,
+                "name": student["name"],
+                "student_id": int(student["student_id"]),
+                "department": student["major"],
+                "is_attendance": is_attendance
+            }
+            result.append(student_data)
+        
+        # 통계 계산
+        total_students = len(result)
+        present_count = sum(1 for student in result if student["is_attendance"])
+        attendance_rate = round((present_count / total_students) * 100, 2) if total_students > 0 else 0
         
         return jsonify({
             "success": True,
-            "data": {
+            "data": result,
+            "week": week,
+            "summary": {
                 "total_students": total_students,
-                "total_attendance_records": total_attendance,
-                "overall_attendance_rate": overall_rate,
-                "status_distribution": status_distribution
+                "present_count": present_count,
+                "absent_count": total_students - present_count,
+                "attendance_rate": attendance_rate
             }
         })
     except Exception as e:
