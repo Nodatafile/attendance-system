@@ -108,6 +108,63 @@ def init_db():
             "timestamp": datetime.now().isoformat()
         })
 
+# 누락된 라우트 추가
+@app.route('/api/attendance', methods=['GET'])
+def get_attendance():
+    """모든 출석 기록 조회"""
+    try:
+        db = get_db()
+        if db is None:
+            return jsonify({"success": False, "error": "데이터베이스 연결 실패"}), 500
+        
+        # 쿼리 파라미터 처리
+        week = request.args.get('week', type=int)
+        student_id = request.args.get('student_id')
+        
+        # 필터 조건 구성
+        filter_condition = {}
+        if week:
+            filter_condition["week_id"] = week
+        if student_id:
+            filter_condition["student_id"] = str(student_id)
+        
+        # 출석 데이터 조회
+        attendance_data = list(db.attendance.find(filter_condition).sort("week_id", 1))
+        
+        # 학생 정보 조회
+        students = list(db.students.find().sort("student_id", 1))
+        student_map = {s["student_id"]: s for s in students}
+        
+        # 결과 변환
+        result = []
+        for record in attendance_data:
+            student_info = student_map.get(record["student_id"], {})
+            attendance_record = {
+                "attendance_id": str(record.get("_id", "")),
+                "student_id": int(record["student_id"]),
+                "student_name": student_info.get("name", "Unknown"),
+                "department": student_info.get("major", "Unknown"),
+                "week_id": record["week_id"],
+                "status": record["status"],
+                "date": record.get("date", ""),
+                "timestamp": record.get("timestamp", "").isoformat() if record.get("timestamp") else ""
+            }
+            result.append(attendance_record)
+        
+        return jsonify({
+            "success": True,
+            "data": result,
+            "filters": {
+                "week": week,
+                "student_id": student_id
+            },
+            "count": len(result),
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @app.route('/api/attendance-board', methods=['GET'])
 def get_attendance_board():
     """출석부 전체 데이터"""
