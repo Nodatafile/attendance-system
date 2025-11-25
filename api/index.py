@@ -2,10 +2,13 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from pymongo import MongoClient
 from datetime import datetime
-import os
 
+# Flask 앱 생성
 app = Flask(__name__)
 CORS(app)
+
+# Vercel에서 인식할 수 있도록 application 변수 추가
+application = app
 
 # MongoDB 연결
 MONGODB_URI = "mongodb+srv://attendance_user:Ilovekwu123!@attendance-cluster.n2vufnx.mongodb.net/?appName=attendance-cluster"
@@ -71,20 +74,23 @@ def initialize_database():
         print(f"데이터베이스 초기화 실패: {e}")
         return False
 
-# ===== API 라우트 =====
-
+# ===== 기본 라우트 =====
 @app.route('/')
 def home():
     return jsonify({
-        "message": "🎓 출석 관리 시스템 API - Vercel",
+        "message": "🎓 출석 관리 시스템 API - Vercel 배포 성공!",
         "status": "작동중",
+        "timestamp": datetime.now().isoformat(),
         "endpoints": [
-            "/api/students",
-            "/api/attendance-board", 
-            "/api/init-db"
+            "GET /api/students",
+            "GET /api/attendance-board", 
+            "POST /api/init-db",
+            "GET /api/attendance-status",
+            "POST /api/attendance/check"
         ]
     })
 
+# ===== API 라우트 =====
 @app.route('/api/init-db', methods=['POST', 'GET'])
 def init_db():
     """데이터베이스 초기화 API"""
@@ -92,12 +98,14 @@ def init_db():
     if success:
         return jsonify({
             "success": True,
-            "message": "✅ 데이터베이스 초기화 완료!"
+            "message": "✅ 데이터베이스 초기화 완료!",
+            "timestamp": datetime.now().isoformat()
         })
     else:
         return jsonify({
             "success": False, 
-            "error": "데이터베이스 초기화 실패"
+            "error": "데이터베이스 초기화 실패",
+            "timestamp": datetime.now().isoformat()
         })
 
 @app.route('/api/attendance-board', methods=['GET'])
@@ -134,7 +142,8 @@ def get_attendance_board():
         return jsonify({
             "success": True,
             "data": result,
-            "week": week
+            "week": week,
+            "timestamp": datetime.now().isoformat()
         })
         
     except Exception as e:
@@ -163,7 +172,9 @@ def get_students():
         
         return jsonify({
             "success": True, 
-            "data": result
+            "data": result,
+            "count": len(result),
+            "timestamp": datetime.now().isoformat()
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -204,10 +215,86 @@ def check_attendance():
         
         return jsonify({
             "success": True, 
-            "message": "출석이 체크되었습니다"
+            "message": "출석이 체크되었습니다",
+            "timestamp": datetime.now().isoformat()
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/attendance-status', methods=['GET'])
+def get_attendance_status():
+    """출석 상태 조회"""
+    try:
+        db = get_db()
+        if db is None:
+            return jsonify({"success": False, "error": "데이터베이스 연결 실패"}), 500
+        
+        week = request.args.get('week', 1, type=int)
+        
+        students = list(db.students.find().sort("student_id", 1))
+        attendance_data = list(db.attendance.find({"week_id": week}))
+        
+        result = []
+        for index, student in enumerate(students, 1):
+            attendance_record = next(
+                (a for a in attendance_data if a["student_id"] == student["student_id"]),
+                None
+            )
+            
+            is_attendance = attendance_record["status"] == "출석" if attendance_record else False
+            
+            student_data = {
+                "number": index,
+                "name": student["name"],
+                "student_id": int(student["student_id"]),
+                "department": student["major"],
+                "is_attendance": is_attendance
+            }
+            result.append(student_data)
+        
+        total_students = len(result)
+        present_count = sum(1 for student in result if student["is_attendance"])
+        attendance_rate = round((present_count / total_students) * 100, 2) if total_students > 0 else 0
+        
+        return jsonify({
+            "success": True,
+            "data": result,
+            "week": week,
+            "summary": {
+                "total_students": total_students,
+                "present_count": present_count,
+                "absent_count": total_students - present_count,
+                "attendance_rate": attendance_rate
+            },
+            "timestamp": datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# 건강 상태 체크
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({
+        "status": "healthy", 
+        "service": "attendance-system",
+        "timestamp": datetime.now().isoformat()
+    })
+
+# 404 에러 핸들러
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({
+        "success": False,
+        "error": "Endpoint not found",
+        "available_endpoints": [
+            "/",
+            "/api/students", 
+            "/api/attendance-board",
+            "/api/init-db",
+            "/api/attendance-status",
+            "/health"
+        ]
+    }), 404
 
 # Vercel에서 필요
 if __name__ == '__main__':
