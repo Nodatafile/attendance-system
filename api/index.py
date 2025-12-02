@@ -919,7 +919,57 @@ def process_auto_absent():
             "success": False,
             "error": str(e)
         }), 500
+
+@app.route('/api/attendance/recheck-status/<int:student_id>/<int:week>', methods=['GET'])
+def get_recheck_status(student_id, week):
+    """학생의 재인식 상태 확인"""
+    try:
+        db = get_db()
+        if db is None:
+            return jsonify({"success": False, "error": "DATABASE_ERROR"}), 500
         
+        record = db.attendance.find_one({
+            "student_id": student_id,
+            "week_id": week
+        })
+        
+        if not record:
+            return jsonify({
+                "success": True,
+                "has_record": False,
+                "message": "출석 기록이 없습니다"
+            })
+        
+        now = datetime.now()
+        expires_at = record.get("expires_at")
+        
+        # 남은 시간 계산
+        if expires_at:
+            time_left = (expires_at - now).total_seconds()
+            minutes_left = max(0, time_left / 60)
+        else:
+            minutes_left = 0
+        
+        return jsonify({
+            "success": True,
+            "has_record": True,
+            "data": {
+                "student_id": student_id,
+                "week_id": week,
+                "status": record["status"],
+                "has_rechecked": record.get("has_rechecked", False),
+                "can_recheck": not record.get("has_rechecked", False) and record["status"] == "출석",
+                "expires_at": expires_at.isoformat() if expires_at else None,
+                "minutes_remaining": round(minutes_left, 1),
+                "is_expired": minutes_left <= 0,
+                "first_check_time": record.get("first_check_time", "").isoformat() if record.get("first_check_time") else None,
+                "recheck_time": record.get("recheck_time", "").isoformat() if record.get("recheck_time") else None
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @app.route('/api/attendance/student/<student_id>', methods=['GET'])
 def get_student_attendance(student_id):
     """학생별 출석 기록"""
