@@ -4,6 +4,7 @@ from pymongo import MongoClient
 from datetime import datetime, timedelta
 from bson import ObjectId
 import re
+import os
 
 # Flask 앱 생성
 app = Flask(__name__)
@@ -1047,3 +1048,6 @@ def not_found(error):
 # Vercel에서 필요
 if __name__ == '__main__':
     app.run(debug=True)
+else:
+    # Vercel에서 사용
+    handler = app
