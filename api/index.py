@@ -1048,6 +1048,3 @@ def not_found(error):
 # Vercel에서 필요
 if __name__ == '__main__':
     app.run(debug=True)
-else:
-    # Vercel에서 사용
-    handler = app
