@@ -66,6 +66,51 @@ def initialize_database():
             
         sample_students = [
             {
+                "student_id": "2007720116",
+                "name": "김조은", 
+                "major": "소프트웨어학부",
+                "email": "kimjoeun@school.ac.kr",
+                "phone": "010-1111-1111",
+                "created_at": datetime.now(),
+                "updated_at": datetime.now()
+            },
+            {
+                "student_id": "2022322035",
+                "name": "배혜윤",
+                "major": "영어산업학과", 
+                "email": "baehyeyoon@school.ac.kr",
+                "phone": "010-2222-2222",
+                "created_at": datetime.now(),
+                "updated_at": datetime.now()
+            },
+            {
+                "student_id": "2023205106",
+                "name": "송윤서",
+                "major": "로봇학부",
+                "email": "songyounseo@school.ac.kr",
+                "phone": "010-3333-3333",
+                "created_at": datetime.now(),
+                "updated_at": datetime.now()
+            },
+            {
+                "student_id": "2023321012",
+                "name": "김초련",
+                "major": "정보융합학부",
+                "email": "kimchorun@school.ac.kr",
+                "phone": "010-4444-4444",
+                "created_at": datetime.now(),
+                "updated_at": datetime.now()
+            },
+            {
+                "student_id": "2024405040",
+                "name": "송주미",
+                "major": "로봇학부",
+                "email": "songjumi@school.ac.kr",
+                "phone": "010-5555-5555",
+                "created_at": datetime.now(),
+                "updated_at": datetime.now()
+            },
+            {
                 "student_id": "20240001",
                 "name": "김철수", 
                 "major": "컴퓨터공학과",
