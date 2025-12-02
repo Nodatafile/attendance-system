@@ -32,6 +32,13 @@ def validate_student_data(data, is_update=False):
     if not is_update:
         if not data.get('student_id'):
             errors.append("학번은 필수 항목입니다")
+        else:
+            # student_id가 숫자인지 확인
+            try:
+                # 프론트엔드에서 문자열로 올 수 있으므로 숫자로 변환 시도
+                student_id = int(data['student_id'])
+            except ValueError:
+                errors.append("학번은 숫자여야 합니다")
         if not data.get('name'):
             errors.append("이름은 필수 항목입니다")
         if not data.get('major'):
@@ -49,8 +56,18 @@ def validate_attendance_data(data):
     
     if not data.get('student_id'):
         errors.append("학번은 필수 항목입니다")
+    else:
+        # student_id가 숫자인지 확인
+        try:
+            int(data['student_id'])
+        except (ValueError, TypeError):
+            errors.append("학번은 숫자여야 합니다")
+            
     if not data.get('week'):
         errors.append("주차는 필수 항목입니다")
+    elif not str(data.get('week')).isdigit():
+        errors.append("주차는 숫자여야 합니다")
+        
     if not data.get('status'):
         errors.append("출석 상태는 필수 항목입니다")
     elif data.get('status') not in valid_statuses:
@@ -71,7 +88,7 @@ def initialize_database():
             
         sample_students = [
             {
-                "student_id": "2007720116",
+                "student_id": 2007720116,
                 "name": "김조은", 
                 "major": "소프트웨어학부",
                 "email": "kimjoeun@school.ac.kr",
@@ -80,7 +97,7 @@ def initialize_database():
                 "updated_at": datetime.now()
             },
             {
-                "student_id": "2022322035",
+                "student_id": 2022322035,
                 "name": "배혜윤",
                 "major": "영어산업학과", 
                 "email": "baehyeyoon@school.ac.kr",
@@ -89,7 +106,7 @@ def initialize_database():
                 "updated_at": datetime.now()
             },
             {
-                "student_id": "2023205106",
+                "student_id": 2023205106,
                 "name": "송윤서",
                 "major": "로봇학부",
                 "email": "songyounseo@school.ac.kr",
@@ -98,7 +115,7 @@ def initialize_database():
                 "updated_at": datetime.now()
             },
             {
-                "student_id": "2023321012",
+                "student_id": 2023321012,
                 "name": "김초련",
                 "major": "정보융합학부",
                 "email": "kimchorun@school.ac.kr",
@@ -107,7 +124,7 @@ def initialize_database():
                 "updated_at": datetime.now()
             },
             {
-                "student_id": "2024405040",
+                "student_id": 2024405040,
                 "name": "송주미",
                 "major": "로봇학부",
                 "email": "songjumi@school.ac.kr",
@@ -133,7 +150,7 @@ def initialize_database():
         sample_attendance = [
             # 1주차
             {
-                "student_id": "2007720116", 
+                "student_id": 2007720116, 
                 "week_id": 1, 
                 "status": "출석", 
                 "date": "2024-03-01", 
@@ -144,7 +161,7 @@ def initialize_database():
                 "last_updated": now
             },
             {
-                "student_id": "2022322035", 
+                "student_id": 2022322035, 
                 "week_id": 1, 
                 "status": "출석", 
                 "date": "2024-03-01", 
@@ -155,7 +172,7 @@ def initialize_database():
                 "last_updated": now
             },
             {
-                "student_id": "2023205106", 
+                "student_id": 2023205106, 
                 "week_id": 1, 
                 "status": "지각", 
                 "date": "2024-03-01", 
@@ -166,7 +183,7 @@ def initialize_database():
                 "last_updated": now
             },
             {
-                "student_id": "2023321012", 
+                "student_id": 2023321012, 
                 "week_id": 1, 
                 "status": "출석", 
                 "date": "2024-03-01", 
@@ -177,7 +194,7 @@ def initialize_database():
                 "last_updated": now
             },
             {
-                "student_id": "2024405040", 
+                "student_id": 2024405040, 
                 "week_id": 1, 
                 "status": "결석", 
                 "date": "2024-03-01", 
@@ -190,7 +207,7 @@ def initialize_database():
             
             # 2주차
             {
-                "student_id": "2007720116", 
+                "student_id": 2007720116, 
                 "week_id": 2, 
                 "status": "출석", 
                 "date": "2024-03-08", 
@@ -201,7 +218,7 @@ def initialize_database():
                 "last_updated": now
             },
             {
-                "student_id": "2022322035", 
+                "student_id": 2022322035, 
                 "week_id": 2, 
                 "status": "조퇴", 
                 "date": "2024-03-08", 
@@ -212,7 +229,7 @@ def initialize_database():
                 "last_updated": now
             },
             {
-                "student_id": "2023205106", 
+                "student_id": 2023205106, 
                 "week_id": 2, 
                 "status": "출석", 
                 "date": "2024-03-08", 
@@ -223,7 +240,7 @@ def initialize_database():
                 "last_updated": now
             },
             {
-                "student_id": "2023321012", 
+                "student_id": 2023321012, 
                 "week_id": 2, 
                 "status": "출석", 
                 "date": "2024-03-08", 
@@ -234,7 +251,7 @@ def initialize_database():
                 "last_updated": now
             },
             {
-                "student_id": "2024405040", 
+                "student_id": 2024405040, 
                 "week_id": 2, 
                 "status": "출석", 
                 "date": "2024-03-08", 
@@ -247,7 +264,7 @@ def initialize_database():
             
             # 3주차
             {
-                "student_id": "2007720116", 
+                "student_id": 2007720116, 
                 "week_id": 3, 
                 "status": "출석", 
                 "date": "2024-03-15", 
@@ -258,7 +275,7 @@ def initialize_database():
                 "last_updated": now
             },
             {
-                "student_id": "2022322035", 
+                "student_id": 2022322035, 
                 "week_id": 3, 
                 "status": "출석", 
                 "date": "2024-03-15", 
@@ -269,7 +286,7 @@ def initialize_database():
                 "last_updated": now
             },
             {
-                "student_id": "2023205106", 
+                "student_id": 2023205106, 
                 "week_id": 3, 
                 "status": "결석", 
                 "date": "2024-03-15", 
@@ -280,7 +297,7 @@ def initialize_database():
                 "last_updated": now
             },
             {
-                "student_id": "2023321012", 
+                "student_id": 2023321012, 
                 "week_id": 3, 
                 "status": "출석", 
                 "date": "2024-03-15", 
@@ -291,7 +308,7 @@ def initialize_database():
                 "last_updated": now
             },
             {
-                "student_id": "2024405040", 
+                "student_id": 2024405040, 
                 "week_id": 3, 
                 "status": "출석", 
                 "date": "2024-03-15", 
@@ -442,7 +459,17 @@ def get_student(student_id):
         db = get_db()
         if db is None:
             return jsonify({"success": False, "error": "DATABASE_ERROR"}), 500
-        
+
+        # student_id를 숫자로 변환
+        try:
+            student_id_int = int(student_id)
+        except ValueError:
+            return jsonify({
+                "success": False,
+                "error": "VALIDATION_ERROR",
+                "message": "학번은 숫자여야 합니다"
+            }), 400
+            
         student = db.students.find_one({"student_id": student_id})
         if not student:
             return jsonify({
@@ -683,7 +710,18 @@ def check_attendance():
                 "error": "VALIDATION_ERROR",
                 "message": "요청 데이터가 없습니다"
             }), 400
-        
+
+        # student_id를 숫자로 변환
+        if 'student_id' in data:
+            try:
+                data['student_id'] = int(data['student_id'])
+            except ValueError:
+                return jsonify({
+                    "success": False,
+                    "error": "VALIDATION_ERROR",
+                    "message": "학번은 숫자여야 합니다"
+                }), 400
+                
         # 데이터 검증
         errors = validate_attendance_data(data)
         if errors:
@@ -744,6 +782,7 @@ def check_attendance():
                 "student_id": attendance_record["student_id"],
                 "week_id": attendance_record["week_id"],
                 "status": attendance_record["status"],
+                "student_name": student["name"],
                 # 프론트엔드에 만료 정보 전달
                 "expires_at": expires_at.isoformat(),
                 "minutes_remaining": 15,
