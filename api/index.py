@@ -115,6 +115,9 @@ def initialize_database():
                 "updated_at": datetime.now()
             }
         ]
+
+        # now 변수 추가
+        now = datetime.now()
         
         sample_weeks = [
             {"week_id": 1, "week_name": "1주차", "start_date": "2024-03-01", "end_date": "2024-03-07"},
