@@ -831,26 +831,26 @@ def check_attendance():
     except Exception as e:
         return jsonify({"success": False, "error": "DATABASE_ERROR", "message": str(e)}), 500
 
-@app.route('/api/attendance/process-auto-absent', methods=['POST'])
+@app.route('/api/attendance/process-auto-absent', methods=['POST', 'GET'])
 def process_auto_absent():
-    """15분 내 재인식 없으면 자동 결석 처리"""
+    """cron-job.org용 자동 결석 처리 API"""
     try:
         db = get_db()
         if db is None:
             return jsonify({"success": False, "error": "DATABASE_ERROR"}), 500
         
         now = datetime.now()
-        print(f"[{now.isoformat()}] 자동 결석 처리 시작")
+        print(f"[{now.isoformat()}] 자동 결석 처리 시작 (Method: {request.method})")
         
         # 15분 이상 지났고, 재인식되지 않은 출석 기록 찾기
         expired_records = list(db.attendance.find({
-            "status": "출석",  # 현재 상태가 출석인 것만
-            "expires_at": {"$lt": now},  # 15분 지남
-            "is_auto_absent_processed": False,  # 아직 처리 안됨
-            "recheck_count": 1  # 재인식이 한번도 없음 (첫 인식만)
+            "status": "출석",
+            "expires_at": {"$lt": now},
+            "is_auto_absent_processed": False,
+            "recheck_count": 1  # 재인식이 없음
         }))
         
-        print(f"📊 15분 내 재인식 없는 기록: {len(expired_records)}개")
+        print(f"📊 처리 대상: {len(expired_records)}개")
         
         processed_count = 0
         for record in expired_records:
@@ -864,37 +864,37 @@ def process_auto_absent():
                             "is_auto_absent_processed": True,
                             "auto_processed_at": now,
                             "last_updated": now,
-                            "notes": f"{record.get('notes', '')}\n[15분 내 재인식 없어 자동 결석 처리: {now.strftime('%H:%M:%S')}]"
+                            "notes": f"{record.get('notes', '')}\n[15분 내 재인식 없음, 자동 결석: {now.strftime('%H:%M:%S')}]"
                         }
                     }
                 )
                 
                 if result.modified_count > 0:
                     processed_count += 1
-                    print(f"✓ 자동 결석: {record['student_id']} (주차 {record['week_id']})")
+                    print(f"✓ {record['student_id']} (주차 {record['week_id']}) → 결석")
                     
             except Exception as e:
-                print(f"❌ 기록 처리 실패 {record['_id']}: {e}")
+                print(f"❌ 처리 실패 {record['_id']}: {e}")
         
-        print(f"✅ 처리 완료: 총 {processed_count}건 자동 결석 처리")
+        print(f"✅ 완료: {processed_count}건 처리됨")
         
-        return jsonify({
+        # cron-job.org가 기대하는 응답 형식
+        response_data = {
             "success": True,
-            "message": f"{processed_count}건을 자동 결석 처리했습니다 (15분 내 재인식 없음)",
-            "data": {
-                "processed_count": processed_count,
-                "total_expired": len(expired_records),
-                "timestamp": now.isoformat(),
-                "condition": "15분 내 재인식 없음"
-            }
-        })
+            "processed": processed_count,
+            "timestamp": now.isoformat(),
+            "service": "attendance-auto-process",
+            "next_run": (now + timedelta(minutes=5)).isoformat()  # 다음 실행 시간
+        }
+        
+        return jsonify(response_data)
         
     except Exception as e:
-        print(f"❌ 자동 결석 처리 오류: {e}")
+        print(f"❌ 오류: {e}")
         return jsonify({
-            "success": False, 
-            "error": "PROCESSING_ERROR",
-            "message": str(e)
+            "success": False,
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
         }), 500
         
 @app.route('/api/attendance/student/<student_id>', methods=['GET'])
