@@ -115,9 +115,6 @@ def initialize_database():
                 "updated_at": datetime.now()
             }
         ]
-
-        # now 변수 추가
-        now = datetime.now()
         
         sample_weeks = [
             {"week_id": 1, "week_name": "1주차", "start_date": "2024-03-01", "end_date": "2024-03-07"},
@@ -129,18 +126,21 @@ def initialize_database():
             {"week_id": 7, "week_name": "7주차", "start_date": "2024-04-12", "end_date": "2024-04-18"}
         ]
         
+        # ★★★★★ now 변수 추가 ★★★★★
+        now = datetime.now()
+        
         sample_attendance = [
-           # 1주차
+            # 1주차
             {
                 "student_id": "2007720116", 
                 "week_id": 1, 
                 "status": "출석", 
                 "date": "2024-03-01", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),  # ★ 추가
-                "is_auto_absent_processed": False,  # ★ 추가
-                "original_status": "출석",  # ★ 추가
-                "last_updated": now  # ★ 추가
+                "expires_at": now + timedelta(minutes=15),
+                "is_auto_absent_processed": False,
+                "original_status": "출석",
+                "last_updated": now
             },
             {
                 "student_id": "2022322035", 
@@ -148,10 +148,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-01", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),  # ★ 추가
-                "is_auto_absent_processed": False,  # ★ 추가
-                "original_status": "출석",  # ★ 추가
-                "last_updated": now  # ★ 추가
+                "expires_at": now + timedelta(minutes=15),
+                "is_auto_absent_processed": False,
+                "original_status": "출석",
+                "last_updated": now
             },
             {
                 "student_id": "2023205106", 
@@ -159,10 +159,10 @@ def initialize_database():
                 "status": "지각", 
                 "date": "2024-03-01", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),  # ★ 추가
-                "is_auto_absent_processed": False,  # ★ 추가
-                "original_status": "지각",  # ★ 추가
-                "last_updated": now  # ★ 추가
+                "expires_at": now + timedelta(minutes=15),
+                "is_auto_absent_processed": False,
+                "original_status": "지각",
+                "last_updated": now
             },
             {
                 "student_id": "2023321012", 
@@ -170,10 +170,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-01", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),  # ★ 추가
-                "is_auto_absent_processed": False,  # ★ 추가
-                "original_status": "출석",  # ★ 추가
-                "last_updated": now  # ★ 추가
+                "expires_at": now + timedelta(minutes=15),
+                "is_auto_absent_processed": False,
+                "original_status": "출석",
+                "last_updated": now
             },
             {
                 "student_id": "2024405040", 
@@ -181,10 +181,10 @@ def initialize_database():
                 "status": "결석", 
                 "date": "2024-03-01", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),  # ★ 추가
-                "is_auto_absent_processed": False,  # ★ 추가
-                "original_status": "결석",  # ★ 추가
-                "last_updated": now  # ★ 추가
+                "expires_at": now + timedelta(minutes=15),
+                "is_auto_absent_processed": False,
+                "original_status": "결석",
+                "last_updated": now
             },
             
             # 2주차
@@ -194,10 +194,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-08", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),  # ★ 추가
-                "is_auto_absent_processed": False,  # ★ 추가
-                "original_status": "출석",  # ★ 추가
-                "last_updated": now  # ★ 추가
+                "expires_at": now + timedelta(minutes=15),
+                "is_auto_absent_processed": False,
+                "original_status": "출석",
+                "last_updated": now
             },
             {
                 "student_id": "2022322035", 
@@ -205,10 +205,10 @@ def initialize_database():
                 "status": "조퇴", 
                 "date": "2024-03-08", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),  # ★ 추가
-                "is_auto_absent_processed": False,  # ★ 추가
-                "original_status": "조퇴",  # ★ 추가
-                "last_updated": now  # ★ 추가
+                "expires_at": now + timedelta(minutes=15),
+                "is_auto_absent_processed": False,
+                "original_status": "조퇴",
+                "last_updated": now
             },
             {
                 "student_id": "2023205106", 
@@ -216,10 +216,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-08", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),  # ★ 추가
-                "is_auto_absent_processed": False,  # ★ 추가
-                "original_status": "출석",  # ★ 추가
-                "last_updated": now  # ★ 추가
+                "expires_at": now + timedelta(minutes=15),
+                "is_auto_absent_processed": False,
+                "original_status": "출석",
+                "last_updated": now
             },
             {
                 "student_id": "2023321012", 
@@ -227,10 +227,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-08", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),  # ★ 추가
-                "is_auto_absent_processed": False,  # ★ 추가
-                "original_status": "출석",  # ★ 추가
-                "last_updated": now  # ★ 추가
+                "expires_at": now + timedelta(minutes=15),
+                "is_auto_absent_processed": False,
+                "original_status": "출석",
+                "last_updated": now
             },
             {
                 "student_id": "2024405040", 
@@ -238,10 +238,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-08", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),  # ★ 추가
-                "is_auto_absent_processed": False,  # ★ 추가
-                "original_status": "출석",  # ★ 추가
-                "last_updated": now  # ★ 추가
+                "expires_at": now + timedelta(minutes=15),
+                "is_auto_absent_processed": False,
+                "original_status": "출석",
+                "last_updated": now
             },
             
             # 3주차
@@ -251,10 +251,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-15", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),  # ★ 추가
-                "is_auto_absent_processed": False,  # ★ 추가
-                "original_status": "출석",  # ★ 추가
-                "last_updated": now  # ★ 추가
+                "expires_at": now + timedelta(minutes=15),
+                "is_auto_absent_processed": False,
+                "original_status": "출석",
+                "last_updated": now
             },
             {
                 "student_id": "2022322035", 
@@ -262,10 +262,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-15", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),  # ★ 추가
-                "is_auto_absent_processed": False,  # ★ 추가
-                "original_status": "출석",  # ★ 추가
-                "last_updated": now  # ★ 추가
+                "expires_at": now + timedelta(minutes=15),
+                "is_auto_absent_processed": False,
+                "original_status": "출석",
+                "last_updated": now
             },
             {
                 "student_id": "2023205106", 
@@ -273,10 +273,10 @@ def initialize_database():
                 "status": "결석", 
                 "date": "2024-03-15", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),  # ★ 추가
-                "is_auto_absent_processed": False,  # ★ 추가
-                "original_status": "결석",  # ★ 추가
-                "last_updated": now  # ★ 추가
+                "expires_at": now + timedelta(minutes=15),
+                "is_auto_absent_processed": False,
+                "original_status": "결석",
+                "last_updated": now
             },
             {
                 "student_id": "2023321012", 
@@ -284,10 +284,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-15", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),  # ★ 추가
-                "is_auto_absent_processed": False,  # ★ 추가
-                "original_status": "출석",  # ★ 추가
-                "last_updated": now  # ★ 추가
+                "expires_at": now + timedelta(minutes=15),
+                "is_auto_absent_processed": False,
+                "original_status": "출석",
+                "last_updated": now
             },
             {
                 "student_id": "2024405040", 
@@ -295,10 +295,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-15", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),  # ★ 추가
-                "is_auto_absent_processed": False,  # ★ 추가
-                "original_status": "출석",  # ★ 추가
-                "last_updated": now  # ★ 추가
+                "expires_at": now + timedelta(minutes=15),
+                "is_auto_absent_processed": False,
+                "original_status": "출석",
+                "last_updated": now
             }
         ]
         
@@ -317,7 +317,6 @@ def initialize_database():
     except Exception as e:
         print(f"데이터베이스 초기화 실패: {e}")
         return False
-
 # ===== 시스템 관리 API =====
 @app.route('/')
 def home():
