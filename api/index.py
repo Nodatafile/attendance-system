@@ -792,6 +792,48 @@ def check_attendance():
     except Exception as e:
         return jsonify({"success": False, "error": "DATABASE_ERROR", "message": str(e)}), 500
 
+@app.route('/api/attendance/auto-process', methods=['POST'])
+def auto_process_absent():
+    """만료된 출석을 자동으로 결석 처리"""
+    try:
+        db = get_db()
+        if db is None:
+            return jsonify({"success": False, "error": "DATABASE_ERROR"}), 500
+        
+        now = datetime.now()
+        
+        # 만료되었지만 아직 처리되지 않은 출석 기록 찾기
+        expired_attendance = db.attendance.find({
+            "expires_at": {"$lt": now},
+            "is_auto_absent_processed": False,
+            "status": {"$ne": "결석"}  # 이미 결석이 아닌 경우만
+        })
+        
+        processed_count = 0
+        for record in expired_attendance:
+            # 상태를 결석으로 변경
+            db.attendance.update_one(
+                {"_id": record["_id"]},
+                {
+                    "$set": {
+                        "status": "결석",
+                        "is_auto_absent_processed": True,
+                        "last_updated": now,
+                        "notes": f"자동 결석 처리 (원래 상태: {record.get('original_status', '미인식')})"
+                    }
+                }
+            )
+            processed_count += 1
+        
+        return jsonify({
+            "success": True,
+            "message": f"{processed_count}건의 출석을 자동 결석 처리했습니다",
+            "processed_count": processed_count
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": "DATABASE_ERROR", "message": str(e)}), 500
+        
 @app.route('/api/attendance/student/<student_id>', methods=['GET'])
 def get_student_attendance(student_id):
     """학생별 출석 기록"""
