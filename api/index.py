@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from pymongo import MongoClient
-from datetime import datetime
+from datetime import datetime, timedelta
 from bson import ObjectId
 import re
 
@@ -54,7 +54,11 @@ def validate_attendance_data(data):
         errors.append("출석 상태는 필수 항목입니다")
     elif data.get('status') not in valid_statuses:
         errors.append(f"출석 상태는 {', '.join(valid_statuses)} 중 하나여야 합니다")
-    
+
+     # week가 숫자인지 확인
+    if data.get('week') and not str(data.get('week')).isdigit():
+        errors.append("주차는 숫자여야 합니다")
+        
     return errors
 
 def initialize_database():
@@ -123,26 +127,176 @@ def initialize_database():
         ]
         
         sample_attendance = [
-            # 1주차
-            {"student_id": "2007720116", "week_id": 1, "status": "출석", "date": "2024-03-01", "timestamp": datetime.now()},
-            {"student_id": "2022322035", "week_id": 1, "status": "출석", "date": "2024-03-01", "timestamp": datetime.now()},
-            {"student_id": "2023205106", "week_id": 1, "status": "지각", "date": "2024-03-01", "timestamp": datetime.now()},
-            {"student_id": "2023321012", "week_id": 1, "status": "출석", "date": "2024-03-01", "timestamp": datetime.now()},
-            {"student_id": "2024405040", "week_id": 1, "status": "결석", "date": "2024-03-01", "timestamp": datetime.now()},
+           # 1주차
+            {
+                "student_id": "2007720116", 
+                "week_id": 1, 
+                "status": "출석", 
+                "date": "2024-03-01", 
+                "timestamp": now,
+                "expires_at": now + timedelta(minutes=15),  # ★ 추가
+                "is_auto_absent_processed": False,  # ★ 추가
+                "original_status": "출석",  # ★ 추가
+                "last_updated": now  # ★ 추가
+            },
+            {
+                "student_id": "2022322035", 
+                "week_id": 1, 
+                "status": "출석", 
+                "date": "2024-03-01", 
+                "timestamp": now,
+                "expires_at": now + timedelta(minutes=15),  # ★ 추가
+                "is_auto_absent_processed": False,  # ★ 추가
+                "original_status": "출석",  # ★ 추가
+                "last_updated": now  # ★ 추가
+            },
+            {
+                "student_id": "2023205106", 
+                "week_id": 1, 
+                "status": "지각", 
+                "date": "2024-03-01", 
+                "timestamp": now,
+                "expires_at": now + timedelta(minutes=15),  # ★ 추가
+                "is_auto_absent_processed": False,  # ★ 추가
+                "original_status": "지각",  # ★ 추가
+                "last_updated": now  # ★ 추가
+            },
+            {
+                "student_id": "2023321012", 
+                "week_id": 1, 
+                "status": "출석", 
+                "date": "2024-03-01", 
+                "timestamp": now,
+                "expires_at": now + timedelta(minutes=15),  # ★ 추가
+                "is_auto_absent_processed": False,  # ★ 추가
+                "original_status": "출석",  # ★ 추가
+                "last_updated": now  # ★ 추가
+            },
+            {
+                "student_id": "2024405040", 
+                "week_id": 1, 
+                "status": "결석", 
+                "date": "2024-03-01", 
+                "timestamp": now,
+                "expires_at": now + timedelta(minutes=15),  # ★ 추가
+                "is_auto_absent_processed": False,  # ★ 추가
+                "original_status": "결석",  # ★ 추가
+                "last_updated": now  # ★ 추가
+            },
             
             # 2주차
-            {"student_id": "2007720116", "week_id": 2, "status": "출석", "date": "2024-03-08", "timestamp": datetime.now()},
-            {"student_id": "2022322035", "week_id": 2, "status": "조퇴", "date": "2024-03-08", "timestamp": datetime.now()},
-            {"student_id": "2023205106", "week_id": 2, "status": "출석", "date": "2024-03-08", "timestamp": datetime.now()},
-            {"student_id": "2023321012", "week_id": 2, "status": "출석", "date": "2024-03-08", "timestamp": datetime.now()},
-            {"student_id": "2024405040", "week_id": 2, "status": "출석", "date": "2024-03-08", "timestamp": datetime.now()},
+            {
+                "student_id": "2007720116", 
+                "week_id": 2, 
+                "status": "출석", 
+                "date": "2024-03-08", 
+                "timestamp": now,
+                "expires_at": now + timedelta(minutes=15),  # ★ 추가
+                "is_auto_absent_processed": False,  # ★ 추가
+                "original_status": "출석",  # ★ 추가
+                "last_updated": now  # ★ 추가
+            },
+            {
+                "student_id": "2022322035", 
+                "week_id": 2, 
+                "status": "조퇴", 
+                "date": "2024-03-08", 
+                "timestamp": now,
+                "expires_at": now + timedelta(minutes=15),  # ★ 추가
+                "is_auto_absent_processed": False,  # ★ 추가
+                "original_status": "조퇴",  # ★ 추가
+                "last_updated": now  # ★ 추가
+            },
+            {
+                "student_id": "2023205106", 
+                "week_id": 2, 
+                "status": "출석", 
+                "date": "2024-03-08", 
+                "timestamp": now,
+                "expires_at": now + timedelta(minutes=15),  # ★ 추가
+                "is_auto_absent_processed": False,  # ★ 추가
+                "original_status": "출석",  # ★ 추가
+                "last_updated": now  # ★ 추가
+            },
+            {
+                "student_id": "2023321012", 
+                "week_id": 2, 
+                "status": "출석", 
+                "date": "2024-03-08", 
+                "timestamp": now,
+                "expires_at": now + timedelta(minutes=15),  # ★ 추가
+                "is_auto_absent_processed": False,  # ★ 추가
+                "original_status": "출석",  # ★ 추가
+                "last_updated": now  # ★ 추가
+            },
+            {
+                "student_id": "2024405040", 
+                "week_id": 2, 
+                "status": "출석", 
+                "date": "2024-03-08", 
+                "timestamp": now,
+                "expires_at": now + timedelta(minutes=15),  # ★ 추가
+                "is_auto_absent_processed": False,  # ★ 추가
+                "original_status": "출석",  # ★ 추가
+                "last_updated": now  # ★ 추가
+            },
             
             # 3주차
-            {"student_id": "2007720116", "week_id": 3, "status": "출석", "date": "2024-03-15", "timestamp": datetime.now()},
-            {"student_id": "2022322035", "week_id": 3, "status": "출석", "date": "2024-03-15", "timestamp": datetime.now()},
-            {"student_id": "2023205106", "week_id": 3, "status": "결석", "date": "2024-03-15", "timestamp": datetime.now()},
-            {"student_id": "2023321012", "week_id": 3, "status": "출석", "date": "2024-03-15", "timestamp": datetime.now()},
-            {"student_id": "2024405040", "week_id": 3, "status": "출석", "date": "2024-03-15", "timestamp": datetime.now()}
+            {
+                "student_id": "2007720116", 
+                "week_id": 3, 
+                "status": "출석", 
+                "date": "2024-03-15", 
+                "timestamp": now,
+                "expires_at": now + timedelta(minutes=15),  # ★ 추가
+                "is_auto_absent_processed": False,  # ★ 추가
+                "original_status": "출석",  # ★ 추가
+                "last_updated": now  # ★ 추가
+            },
+            {
+                "student_id": "2022322035", 
+                "week_id": 3, 
+                "status": "출석", 
+                "date": "2024-03-15", 
+                "timestamp": now,
+                "expires_at": now + timedelta(minutes=15),  # ★ 추가
+                "is_auto_absent_processed": False,  # ★ 추가
+                "original_status": "출석",  # ★ 추가
+                "last_updated": now  # ★ 추가
+            },
+            {
+                "student_id": "2023205106", 
+                "week_id": 3, 
+                "status": "결석", 
+                "date": "2024-03-15", 
+                "timestamp": now,
+                "expires_at": now + timedelta(minutes=15),  # ★ 추가
+                "is_auto_absent_processed": False,  # ★ 추가
+                "original_status": "결석",  # ★ 추가
+                "last_updated": now  # ★ 추가
+            },
+            {
+                "student_id": "2023321012", 
+                "week_id": 3, 
+                "status": "출석", 
+                "date": "2024-03-15", 
+                "timestamp": now,
+                "expires_at": now + timedelta(minutes=15),  # ★ 추가
+                "is_auto_absent_processed": False,  # ★ 추가
+                "original_status": "출석",  # ★ 추가
+                "last_updated": now  # ★ 추가
+            },
+            {
+                "student_id": "2024405040", 
+                "week_id": 3, 
+                "status": "출석", 
+                "date": "2024-03-15", 
+                "timestamp": now,
+                "expires_at": now + timedelta(minutes=15),  # ★ 추가
+                "is_auto_absent_processed": False,  # ★ 추가
+                "original_status": "출석",  # ★ 추가
+                "last_updated": now  # ★ 추가
+            }
         ]
         
         # 기존 데이터 삭제
@@ -154,7 +308,8 @@ def initialize_database():
         db.students.insert_many(sample_students)
         db.weeks.insert_many(sample_weeks) 
         db.attendance.insert_many(sample_attendance)
-        
+
+         print("✅ 데이터베이스 초기화 완료 ")
         return True
     except Exception as e:
         print(f"데이터베이스 초기화 실패: {e}")
@@ -547,15 +702,26 @@ def check_attendance():
                 "error": "STUDENT_NOT_FOUND",
                 "message": "학생을 찾을 수 없습니다"
             }), 404
+
+        now = datetime.now()
+
+        # 15분 후 만료 시간 계산
+        expires_at = now + timedelta(minutes=15)
         
         # 출석 기록 생성
         attendance_record = {
             "student_id": data['student_id'],
             "week_id": data['week'],
             "status": data['status'],
-            "date": datetime.now().strftime("%Y-%m-%d"),
+            "date": now.strftime("%Y-%m-%d"),
             "notes": data.get('notes', ''),
-            "timestamp": datetime.now()
+            "timestamp": now,
+
+            # 자동 결석 처리를 위한 필드들
+            "expires_at": expires_at,                    # 15분 후 만료 시간
+            "is_auto_absent_processed": False,           # 자동 처리 여부
+            "original_status": data['status'],           # 원래 상태 저장
+            "last_updated": now                          # 마지막 업데이트 시간
         }
         
         # 기존 기록 업데이트 또는 새로 추가
@@ -575,6 +741,10 @@ def check_attendance():
                 "student_id": attendance_record["student_id"],
                 "week_id": attendance_record["week_id"],
                 "status": attendance_record["status"]
+                # 프론트엔드에 만료 정보 전달
+                "expires_at": expires_at.isoformat(),
+                "minutes_remaining": 15,
+                "auto_absent_warning": "15분 내 재인식 필요"
             }
         })
     except Exception as e:
