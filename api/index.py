@@ -14,7 +14,7 @@ CORS(app)
 application = app
 
 # MongoDB 연결
-MONGODB_URI = "mongodb+srv://attendance_user:Ilovekwu123!@attendance-cluster.n2vufnx.mongodb.net/?appName=attendance-cluster"
+MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb+srv://attendance_user:Ilovekwu123!@attendance-cluster.n2vufnx.mongodb.net/?appName=attendance-cluster")
 
 def get_db():
     try:
