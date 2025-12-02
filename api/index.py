@@ -335,6 +335,7 @@ def initialize_database():
     except Exception as e:
         print(f"데이터베이스 초기화 실패: {e}")
         return False
+
 # ===== 시스템 관리 API =====
 @app.route('/')
 def home():
