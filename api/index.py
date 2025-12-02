@@ -701,7 +701,7 @@ def get_attendance():
 
 @app.route('/api/attendance/check', methods=['POST'])
 def check_attendance():
-    """출석 체크 - 재인식 로직 포함"""
+    """출석 체크 - 출튀 방지용"""
     try:
         data = request.get_json()
         if not data:
@@ -711,7 +711,7 @@ def check_attendance():
                 "message": "요청 데이터가 없습니다"
             }), 400
         
-        # student_id를 숫자로 변환
+        # student_id 숫자 변환
         if 'student_id' in data:
             try:
                 data['student_id'] = int(data['student_id'])
@@ -737,7 +737,6 @@ def check_attendance():
         
         # 학생 존재 확인
         student = db.students.find_one({"student_id": data['student_id']})
-        
         if not student:
             return jsonify({
                 "success": False,
@@ -748,49 +747,39 @@ def check_attendance():
         now = datetime.now()
         week_id = int(data['week'])
         
-        # 1. 기존 출석 기록 확인
+        # 1. 기존 기록 확인
         existing_record = db.attendance.find_one({
             "student_id": data['student_id'],
             "week_id": week_id
         })
         
-        # 2. 재인식인지 첫 인식인지 판단
+        # 2. 재인식인지 판단 (출튀 방지 핵심)
         is_recheck = False
-        current_status = data['status']
-        
         if existing_record:
-            # 이미 출석 기록이 있는 경우
-            if existing_record["status"] == "출석" and not existing_record.get("is_auto_absent_processed", False):
-                # 아직 자동 결석 처리되지 않은 출석 기록이 있으면 재인식
+            # 이미 기록이 있고, 아직 결석 처리되지 않았으면 재인식
+            if not existing_record.get("is_auto_absent_processed", False):
                 is_recheck = True
-                print(f"🔁 재인식: {data['student_id']} (주차 {week_id})")
-                
-                # 재인식이므로 상태를 유지 (출석 → 출석)
-                current_status = "출석"
-            else:
-                # 이미 결석 처리되었거나 다른 상태면 새로 기록
-                is_recheck = False
+                print(f"🔁 재인식 감지: {data['student_id']} (출튀 방지)")
         
-        # 3. 만료 시간 계산 (15분 후)
+        # 3. 만료 시간 계산 (항상 15분 후)
         expires_at = now + timedelta(minutes=15)
         
         # 4. 출석 기록 생성/수정
         attendance_record = {
-            "student_id": data['student_id'],
+            "student_id": data['student_id"],
             "week_id": week_id,
-            "status": current_status,
+            "status": "출석",  # ✅ 항상 "출석"으로 저장 (재인식이든 첫 인식이든)
             "date": now.strftime("%Y-%m-%d"),
-            "notes": data.get('notes', ''),
             "timestamp": now,
             "expires_at": expires_at,
-            "is_auto_absent_processed": False,
-            "original_status": data['status'],  # 원래 요청 상태 저장
+            "is_auto_absent_processed": False,  # ✅ 재인식 시 리셋
+            "original_status": "출석",
             "last_updated": now,
-            "recheck_count": existing_record.get("recheck_count", 0) + 1 if is_recheck else 1,
-            "last_recheck_time": now if is_recheck else None
+            "is_recheck": is_recheck,  # ✅ 재인식 여부 표시
+            "recheck_times": existing_record.get("recheck_times", []) + [now] if is_recheck else [now]
         }
         
-        # 5. 기존 기록 업데이트 또는 새로 추가
+        # 5. 업데이트 또는 삽입
         result = db.attendance.update_one(
             {
                 "student_id": attendance_record["student_id"],
@@ -800,7 +789,7 @@ def check_attendance():
             upsert=True
         )
         
-        # 6. 응답 데이터 준비
+        # 6. 응답
         response_data = {
             "student_id": attendance_record["student_id"],
             "week_id": attendance_record["week_id"],
@@ -809,92 +798,96 @@ def check_attendance():
             "expires_at": expires_at.isoformat(),
             "minutes_remaining": 15,
             "is_recheck": is_recheck,
-            "recheck_count": attendance_record["recheck_count"]
+            "recheck_count": len(attendance_record["recheck_times"])
         }
         
-        # 재인식인 경우 메시지 다르게
-        if is_recheck:
-            message = "재인식되었습니다. 출석이 유지됩니다."
-            # 재인식 시간 기록
-            db.attendance.update_one(
-                {"student_id": data['student_id'], "week_id": week_id},
-                {"$push": {"recheck_times": now}}
-            )
-        else:
-            message = "출석이 체크되었습니다"
+        message = "재인식되었습니다" if is_recheck else "출석이 체크되었습니다"
         
         return jsonify({
             "success": True, 
             "message": message,
             "data": response_data
         })
+        
     except Exception as e:
         return jsonify({"success": False, "error": "DATABASE_ERROR", "message": str(e)}), 500
 
 @app.route('/api/attendance/process-auto-absent', methods=['POST', 'GET'])
 def process_auto_absent():
-    """cron-job.org용 자동 결석 처리 API"""
+    """출튀 방지: 15분 내 재인식 없으면 결석 처리"""
     try:
         db = get_db()
         if db is None:
             return jsonify({"success": False, "error": "DATABASE_ERROR"}), 500
         
         now = datetime.now()
-        print(f"[{now.isoformat()}] 자동 결석 처리 시작 (Method: {request.method})")
+        print(f"[{now.isoformat()}] 출튀 방지 자동 결석 처리 시작")
         
-        # 15분 이상 지났고, 재인식되지 않은 출석 기록 찾기
+        # ✅ 조건: 
+        # 1. 상태가 "출석" 
+        # 2. 만료 시간 지남
+        # 3. 아직 자동 처리 안됨
+        # 4. 마지막 인식 후 15분 경과
         expired_records = list(db.attendance.find({
             "status": "출석",
             "expires_at": {"$lt": now},
-            "is_auto_absent_processed": False,
-            "recheck_count": 1  # 재인식이 없음
+            "is_auto_absent_processed": False
         }))
         
-        print(f"📊 처리 대상: {len(expired_records)}개")
+        print(f"📊 출튀 의심 기록: {len(expired_records)}개")
         
         processed_count = 0
         for record in expired_records:
             try:
-                # 상태를 결석으로 변경
-                result = db.attendance.update_one(
-                    {"_id": record["_id"]},
-                    {
-                        "$set": {
-                            "status": "결석",
-                            "is_auto_absent_processed": True,
-                            "auto_processed_at": now,
-                            "last_updated": now,
-                            "notes": f"{record.get('notes', '')}\n[15분 내 재인식 없음, 자동 결석: {now.strftime('%H:%M:%S')}]"
-                        }
-                    }
-                )
+                # 재인식이 있었는지 확인
+                recheck_times = record.get("recheck_times", [])
+                last_check_time = record.get("timestamp", record.get("last_updated"))
                 
-                if result.modified_count > 0:
-                    processed_count += 1
-                    print(f"✓ {record['student_id']} (주차 {record['week_id']}) → 결석")
+                # 마지막 인식 후 15분이 지났는지 확인
+                time_since_last_check = now - last_check_time
+                minutes_since_last_check = time_since_last_check.total_seconds() / 60
+                
+                if minutes_since_last_check >= 15:
+                    # 15분 내 재인식 없음 → 출튀로 판단, 결석 처리
+                    result = db.attendance.update_one(
+                        {"_id": record["_id"]},
+                        {
+                            "$set": {
+                                "status": "결석",
+                                "is_auto_absent_processed": True,
+                                "auto_processed_at": now,
+                                "last_updated": now,
+                                "notes": f"{record.get('notes', '')}\n[출튀 감지: 15분 내 재인식 없어 자동 결석 처리 ({now.strftime('%H:%M:%S')})]"
+                            }
+                        }
+                    )
                     
+                    if result.modified_count > 0:
+                        processed_count += 1
+                        print(f"🚨 출튀 감지: {record['student_id']} (주차 {record['week_id']}) → 결석")
+                        print(f"   마지막 인식: {last_check_time.strftime('%H:%M:%S')}")
+                        print(f"   경과 시간: {minutes_since_last_check:.1f}분")
+                        
             except Exception as e:
-                print(f"❌ 처리 실패 {record['_id']}: {e}")
+                print(f"❌ 처리 실패: {e}")
         
-        print(f"✅ 완료: {processed_count}건 처리됨")
+        print(f"✅ 완료: {processed_count}건 출튀 결석 처리됨")
         
-        # cron-job.org가 기대하는 응답 형식
-        response_data = {
+        return jsonify({
             "success": True,
-            "processed": processed_count,
-            "timestamp": now.isoformat(),
-            "service": "attendance-auto-process",
-            "next_run": (now + timedelta(minutes=5)).isoformat()  # 다음 실행 시간
-        }
-        
-        return jsonify(response_data)
+            "message": f"{processed_count}건 출튀 결석 처리됨",
+            "data": {
+                "processed_count": processed_count,
+                "timestamp": now.isoformat(),
+                "detection": "15분 내 재인식 없음 (출튀)"
+            }
+        })
         
     except Exception as e:
         print(f"❌ 오류: {e}")
         return jsonify({
             "success": False,
-            "error": str(e),
-            "timestamp": datetime.now().isoformat()
+            "error": str(e)
         }), 500
         
 @app.route('/api/attendance/student/<student_id>', methods=['GET'])
