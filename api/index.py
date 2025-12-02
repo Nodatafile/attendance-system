@@ -742,7 +742,7 @@ def check_attendance():
             "data": {
                 "student_id": attendance_record["student_id"],
                 "week_id": attendance_record["week_id"],
-                "status": attendance_record["status"]，
+                "status": attendance_record["status"],
                 # 프론트엔드에 만료 정보 전달
                 "expires_at": expires_at.isoformat(),
                 "minutes_remaining": 15,
