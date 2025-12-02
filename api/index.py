@@ -309,7 +309,7 @@ def initialize_database():
         db.weeks.insert_many(sample_weeks) 
         db.attendance.insert_many(sample_attendance)
 
-         print("✅ 데이터베이스 초기화 완료 ")
+        print("✅ 데이터베이스 초기화 완료 ")
         return True
     except Exception as e:
         print(f"데이터베이스 초기화 실패: {e}")
