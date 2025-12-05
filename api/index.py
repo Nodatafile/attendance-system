@@ -798,95 +798,109 @@ def check_attendance():
 
         now = datetime.now()
         week_id = int(data['week'])
+        student_id = data['student_id']
         
         # 기존 기록 확인
-        existing_record = db.attendance.find_one({
-            "student_id": data['student_id'],
+        record = db.attendance.find_one({
+            "student_id": student_id,
             "week_id": week_id
         })
         
-        # 재인식 횟수 계산
-        if existing_record:
-            recheck_count = existing_record.get("recheck_count", 0) + 1
-            first_check_time = existing_record.get("first_check_time", now)
+        # ★★★ ChatGPT가 제안한 명확한 로직 적용 ★★★
+        if record:
+            # 재인식 처리
+            current_recheck_count = record.get("recheck_count", 0)
+            recheck_count = current_recheck_count + 1
+            
+            # 첫 인식 시간 유지
+            first_check_time = record.get("first_check_time", now)
         else:
+            # 첫 인식
             recheck_count = 0
             first_check_time = now
         
-        # ★★★ 패턴 결정 ★★★
-        status = "출석"
-        
-        # 패턴: 0(없음), 1(있음), 2(없음), 3(있음), 4(없음), 5(있음)...
+        # 메시지와 타임어택 결정
         if recheck_count == 0:
-            expires_at = None
-            should_have_timelock = False
-        elif recheck_count % 2 == 1:  # 홀수: 1,3,5...
-            expires_at = now + timedelta(minutes=15)
-            should_have_timelock = True
-        else:  # 짝수: 2,4,6...
-            expires_at = None
-            should_have_timelock = False
-        
-        # 메시지 결정
-        if recheck_count == 0:
+            # 첫 인식
             message = "출석이 체크되었습니다 (첫 인식)"
-        elif expires_at:
+            expires_at = None
+            is_in_timelock = False
+        elif recheck_count % 2 == 1:
+            # 홀수번째 재인식 → 타임어택 시작 (1, 3, 5...)
             message = f"재인식되었습니다 ({recheck_count}회) - 🚨 15분 내 재인식 필요!"
+            expires_at = now + timedelta(minutes=15)
+            is_in_timelock = True
         else:
+            # 짝수번째 재인식 → 타임어택 종료 (2, 4, 6...)
             message = f"재인식되었습니다 ({recheck_count}회) - 타임어택 해제됨"
+            expires_at = None
+            is_in_timelock = False
         
-       # ★★★ $set과 $unset 조합으로 명시적으로 처리 ★★★
-    set_data = {
-        "status": status,
-        "date": now.strftime("%Y-%m-%d"),
-        "timestamp": now,
-        "is_auto_absent_processed": False,
-        "recheck_count": recheck_count,
-        "first_check_time": first_check_time,
-        "recheck_time": now if existing_record else None,
-        "timelock_cycle": (recheck_count + 1) // 2 if recheck_count > 0 else 0,
-        "last_updated": now,
-        "notes": f"재인식 {recheck_count}회 - 패턴: {'홀수-타임어택' if recheck_count % 2 == 1 else '짝수-해제' if recheck_count > 0 else '첫인식'}"
-    }
-    
-    update_operation = {"$set": set_data}
-    
-    # expires_at 처리
-    if expires_at is not None:
-        update_operation["$set"]["expires_at"] = expires_at
-    else:
-        # None인 경우 필드 제거
-        update_operation["$unset"] = {"expires_at": ""}
-    
-    result = db.attendance.update_one(
-        {
-            "student_id": data['student_id'],
-            "week_id": week_id
-        },
-        update_operation,
-        upsert=True
-    )
+        # ★★★ 업데이트 데이터 준비 (ChatGPT 방식) ★★★
+        update_data = {
+            "student_id": student_id,
+            "week_id": week_id,
+            "status": "출석",
+            "date": now.strftime("%Y-%m-%d"),
+            "timestamp": now,
+            "recheck_count": recheck_count,
+            "first_check_time": first_check_time,
+            "recheck_time": now,
+            "last_updated": now,
+            "notes": f"재인식 {recheck_count}회 - {'타임어택 시작' if is_in_timelock else '타임어택 없음' if recheck_count == 0 else '타임어택 종료'}"
+        }
         
-        print(f"DEBUG: recheck_count={recheck_count}, expires_at={expires_at}, should_have_timelock={should_have_timelock}")
+        # ★ 홀수번째 재인식 → 타임어택 시작
+        if recheck_count % 2 == 1:
+            update_data["expires_at"] = now + timedelta(minutes=15)
+            update_data["is_auto_absent_processed"] = False   # 자동 결석 대기
+        # ★ 짝수번째 재인식 또는 첫 인식 → 타임어택 없음
+        else:
+            # expires_at 필드 제거 (None이 아니라 완전히 제거)
+            update_data.pop("expires_at", None)  # 혹시 있을 경우 제거
+            update_data["is_auto_absent_processed"] = False
+        
+        # upsert로 업데이트 (기록이 없으면 생성)
+        update_operation = {"$set": update_data}
+        
+        # MongoDB 업데이트 (expires_at 제거는 $unset으로)
+        if "expires_at" not in update_data and record and record.get("expires_at"):
+            # 기존에 expires_at이 있었다면 제거
+            update_operation["$unset"] = {"expires_at": ""}
+        
+        result = db.attendance.update_one(
+            {"student_id": student_id, "week_id": week_id},
+            update_operation,
+            upsert=True
+        )
+        
+        # 디버깅 로그
+        print(f"\n=== 출석 체크 디버그 ===")
+        print(f"학생: {student_id} (주차: {week_id})")
+        print(f"기존 recheck_count: {record.get('recheck_count') if record else '없음'}")
+        print(f"새 recheck_count: {recheck_count}")
+        print(f"홀수/짝수: {'홀수' if recheck_count % 2 == 1 else '짝수'}")
+        print(f"타임어택: {'있음' if is_in_timelock else '없음'}")
+        print(f"expires_at: {expires_at}")
+        print(f"=====================\n")
         
         return jsonify({
             "success": True, 
             "message": message,
             "data": {
-                "student_id": data['student_id'],
+                "student_id": student_id,
                 "week_id": week_id,
-                "status": status,
+                "status": "출석",
                 "student_name": student["name"],
                 "expires_at": expires_at.isoformat() if expires_at else None,
                 "recheck_count": recheck_count,
-                "timelock_cycle": set_data["timelock_cycle"],
-                "is_in_timelock": expires_at is not None,
+                "is_in_timelock": is_in_timelock,
                 "first_check_time": first_check_time.isoformat(),
+                "recheck_time": now.isoformat(),
                 "pattern_info": {
                     "count": recheck_count,
                     "is_odd": recheck_count % 2 == 1,
-                    "should_have_timelock": should_have_timelock,
-                    "actual_has_timelock": expires_at is not None
+                    "description": f"{recheck_count}회째 재인식 - {'타임어택 시작' if is_in_timelock else '타임어택 없음' if recheck_count == 0 else '타임어택 종료'}"
                 }
             }
         })
@@ -921,8 +935,25 @@ def process_auto_absent():
                 
                 # ★★★ 홀수번째 재인식인지 확인 (1,3,5...) ★★★
                 if recheck_count > 0 and recheck_count % 2 == 1:
-                    # ... 결석 처리 로직
+                    # 자동 결석 처리
+                    db.attendance.update_one(
+                        {"_id": record["_id"]},
+                        {
+                            "$set": {
+                                "status": "결석",
+                                "is_auto_absent_processed": True,
+                                "last_updated": now,
+                                "notes": f"자동 결석 처리됨 - {recheck_count}회째 재인식 후 15분 내 재확인 없음"
+                            }
+                        }
+                    )
+                    processed_count += 1
+                    print(f"자동 결석 처리: 학생 {record['student_id']}, 주차 {record['week_id']}, 재인식 {recheck_count}회")
                     
+            except Exception as e:
+                print(f"자동 결석 처리 중 오류: {e}")
+                continue
+        
         return jsonify({
             "success": True,
             "message": f"{processed_count}건 자동 결석 처리됨",
@@ -932,6 +963,8 @@ def process_auto_absent():
                 "condition": "홀수번째 재인식(1,3,5...) 후 15분 내 재인식 없음"
             }
         })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/attendance/recheck-status/<int:student_id>/<int:week>', methods=['GET'])
 def get_recheck_status(student_id, week):
