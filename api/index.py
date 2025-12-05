@@ -819,10 +819,13 @@ def check_attendance():
         # 패턴: 0(없음), 1(있음), 2(없음), 3(있음), 4(없음), 5(있음)...
         if recheck_count == 0:
             expires_at = None
+            should_have_timelock = False
         elif recheck_count % 2 == 1:  # 홀수: 1,3,5...
             expires_at = now + timedelta(minutes=15)
+            should_have_timelock = True
         else:  # 짝수: 2,4,6...
             expires_at = None
+            should_have_timelock = False
         
         # 메시지 결정
         if recheck_count == 0:
@@ -832,36 +835,39 @@ def check_attendance():
         else:
             message = f"재인식되었습니다 ({recheck_count}회) - 타임어택 해제됨"
         
-        # ★★★ 명시적으로 모든 필드 설정 ★★★
-        update_data = {
-            "status": status,
-            "date": now.strftime("%Y-%m-%d"),
-            "timestamp": now,
-            "expires_at": expires_at,  # 명시적으로 None으로 설정
-            "is_auto_absent_processed": False,
-            "recheck_count": recheck_count,
-            "first_check_time": first_check_time,
-            "recheck_time": now if existing_record else None,
-            "timelock_cycle": (recheck_count + 1) // 2 if recheck_count > 0 else 0,
-            "last_updated": now,
-            "notes": f"재인식 {recheck_count}회 - 패턴: {'홀수-타임어택' if recheck_count % 2 == 1 else '짝수-해제' if recheck_count > 0 else '첫인식'}"
-        }
+       # ★★★ $set과 $unset 조합으로 명시적으로 처리 ★★★
+    set_data = {
+        "status": status,
+        "date": now.strftime("%Y-%m-%d"),
+        "timestamp": now,
+        "is_auto_absent_processed": False,
+        "recheck_count": recheck_count,
+        "first_check_time": first_check_time,
+        "recheck_time": now if existing_record else None,
+        "timelock_cycle": (recheck_count + 1) // 2 if recheck_count > 0 else 0,
+        "last_updated": now,
+        "notes": f"재인식 {recheck_count}회 - 패턴: {'홀수-타임어택' if recheck_count % 2 == 1 else '짝수-해제' if recheck_count > 0 else '첫인식'}"
+    }
+    
+    update_operation = {"$set": set_data}
+    
+    # expires_at 처리
+    if expires_at is not None:
+        update_operation["$set"]["expires_at"] = expires_at
+    else:
+        # None인 경우 필드 제거
+        update_operation["$unset"] = {"expires_at": ""}
+    
+    result = db.attendance.update_one(
+        {
+            "student_id": data['student_id'],
+            "week_id": week_id
+        },
+        update_operation,
+        upsert=True
+    )
         
-        # ★★★ $set 연산자로 모든 필드 강제 업데이트 ★★★
-        result = db.attendance.update_one(
-            {
-                "student_id": data['student_id'],
-                "week_id": week_id
-            },
-            {
-                "$set": update_data  # 모든 필드를 명시적으로 업데이트
-            },
-            upsert=True
-        )
-        
-        # 디버그 정보
-        print(f"DEBUG: recheck_count={recheck_count}, expires_at={expires_at}")
-        print(f"DEBUG: Update result - matched: {result.matched_count}, modified: {result.modified_count}")
+        print(f"DEBUG: recheck_count={recheck_count}, expires_at={expires_at}, should_have_timelock={should_have_timelock}")
         
         return jsonify({
             "success": True, 
@@ -878,14 +884,9 @@ def check_attendance():
                 "first_check_time": first_check_time.isoformat(),
                 "pattern_info": {
                     "count": recheck_count,
-                    "type": "first" if recheck_count == 0 else "odd_start" if recheck_count % 2 == 1 else "even_end",
-                    "should_have_timelock": recheck_count % 2 == 1 and recheck_count > 0,
+                    "is_odd": recheck_count % 2 == 1,
+                    "should_have_timelock": should_have_timelock,
                     "actual_has_timelock": expires_at is not None
-                },
-                "debug": {
-                    "matched_count": result.matched_count,
-                    "modified_count": result.modified_count,
-                    "upserted_id": str(result.upserted_id) if result.upserted_id else None
                 }
             }
         })
