@@ -798,59 +798,58 @@ def check_attendance():
 
         now = datetime.now()
         week_id = int(data['week'])
+        student_id = int(data['student_id'])
         
         # 기존 기록 확인
         existing_record = db.attendance.find_one({
-            "student_id": data['student_id"],
+            "student_id": student_id,
             "week_id": week_id
         })
         
-        # ★★★ 재인식 횟수 계산 - 명확하게 ★★★
+        # ★★★ 재인식 횟수 계산 수정 ★★★
         if existing_record:
             # 기존 기록이 있으면: 재인식 횟수 +1
-            recheck_count = existing_record.get("recheck_count", 0) + 1
-            first_check_time = existing_record.get("first_check_time", now)
+            current_recheck = existing_record.get("recheck_count", 0)
+            
+            # ★★★ 샘플 데이터 구분: 상태가 "출석"이고 recheck_count=0인 샘플 데이터는 첫 인식으로 처리 ★★★
+            if current_recheck == 0 and existing_record.get("status") == "출석" and "샘플 데이터" in existing_record.get("notes", ""):
+                # 샘플 데이터는 무시하고 첫 인식으로 처리
+                recheck_count = 0
+                first_check_time = now
+                is_sample_data = True
+            else:
+                # 실제 재인식
+                recheck_count = current_recheck + 1
+                first_check_time = existing_record.get("first_check_time", now)
+                is_sample_data = False
         else:
-            # 첫 인식: 재인식 횟수 = 0
+            # 첫 인식
             recheck_count = 0
             first_check_time = now
+            is_sample_data = False
         
-        # recheck_count 기준:
-        # 0: 첫 인식 - 타임어택 없음
-        # 1: 두번째 인식 - 타임어택 시작 (15분)
-        # 2: 세번째 인식 - 타임어택 해제
-        # 3: 네번째 인식 - 타임어택 시작 (15분)
-        # 4: 다섯번째 인식 - 타임어택 해제
-        # 5: 여섯번째 인식 - 타임어택 시작 (15분)
-        # ...
-        # 홀수(1,3,5...): 타임어택 시작
-        # 짝수(2,4,6...): 타임어택 해제
-        # (0은 특별 케이스: 타임어택 없음)
-        
-        status = "출석"  # 무조건 출석
-        expires_at = None
+        # ★★★ 타임어택 로직 ★★★
+        status = "출석"
         
         if recheck_count == 0:
             # 첫 인식: 타임어택 없음
-            expires_at = None
-        elif recheck_count % 2 == 1:  # 홀수: 1,3,5...
-            # 두번째, 네번째, 여섯번째... 인식: 타임어택 시작
-            expires_at = now + timedelta(minutes=15)
-        else:  # 짝수: 2,4,6...
-            # 세번째, 다섯번째, 일곱번째... 인식: 타임어택 해제
-            expires_at = None
-        
-        # 메시지 결정
-        if recheck_count == 0:
             message = "출석이 체크되었습니다 (첫 인식)"
-        elif expires_at:
-            message = f"재인식되었습니다 ({recheck_count}회) - 🚨 15분 내 재인식 필요!"
-        else:
-            message = f"재인식되었습니다 ({recheck_count}회) - 타임어택 해제됨"
+            expires_at = None
+            has_time_limit = False
+        elif recheck_count % 2 == 1:  # 홀수: 1,3,5...
+            # 홀수번째 재인식: 타임어택 시작
+            message = f"재인식되었습니다 (재인식 #{recheck_count}회) - 🚨 15분 내 재인식 필요!"
+            expires_at = now + timedelta(minutes=15)
+            has_time_limit = True
+        else:  # 짝수: 2,4,6...
+            # 짝수번째 재인식: 타임어택 해제
+            message = f"재인식되었습니다 (재인식 #{recheck_count}회) - 타임어택 해제됨"
+            expires_at = None
+            has_time_limit = False
         
-        # 출석 기록
-        attendance_record = {
-            "student_id": data['student_id'],
+        # ★★★ 업데이트 데이터 ★★★
+        update_data = {
+            "student_id": student_id,
             "week_id": week_id,
             "status": status,
             "date": now.strftime("%Y-%m-%d"),
@@ -859,19 +858,25 @@ def check_attendance():
             "is_auto_absent_processed": False,
             "recheck_count": recheck_count,
             "first_check_time": first_check_time,
-            "recheck_time": now if existing_record else None,
-            "timelock_cycle": (recheck_count + 1) // 2 if recheck_count > 0 else 0,
+            "recheck_time": now if existing_record and not is_sample_data else None,
             "last_updated": now,
-            "notes": f"재인식 {recheck_count}회 - 패턴: {'홀수-타임어택' if recheck_count % 2 == 1 else '짝수-해제' if recheck_count > 0 else '첫인식'}"
+            "notes": f"재인식 {recheck_count}회 - 패턴: {'홀수-타임어택' if has_time_limit else '짝수-해제' if recheck_count > 0 else '첫인식'}"
         }
         
-        # 업데이트 또는 삽입
-        db.attendance.update_one(
+        # ★★★ 업데이트 연산 구성 ★★★
+        if has_time_limit:
+            update_operation = {"$set": update_data}
+        else:
+            # 타임어택 없으면 expires_at 필드 제거
+            update_operation = {"$set": update_data, "$unset": {"expires_at": ""}}
+        
+        # 업데이트 실행
+        result = db.attendance.update_one(
             {
-                "student_id": data['student_id'],
+                "student_id": student_id,
                 "week_id": week_id
             },
-            {"$set": attendance_record},
+            update_operation,
             upsert=True
         )
         
@@ -879,18 +884,18 @@ def check_attendance():
             "success": True, 
             "message": message,
             "data": {
-                "student_id": data['student_id'],
+                "student_id": student_id,
                 "week_id": week_id,
                 "status": status,
                 "student_name": student["name"],
                 "expires_at": expires_at.isoformat() if expires_at else None,
                 "recheck_count": recheck_count,
-                "timelock_cycle": attendance_record["timelock_cycle"],
-                "is_in_timelock": expires_at is not None,
+                "has_time_limit": has_time_limit,  # ★★★ 추가: 명확한 타임어택 여부 ★★★
+                "is_in_timelock": has_time_limit,
                 "first_check_time": first_check_time.isoformat(),
                 "pattern_info": {
                     "count": recheck_count,
-                    "type": "first" if recheck_count == 0 else "odd_start" if recheck_count % 2 == 1 else "even_end",
+                    "is_odd": recheck_count % 2 == 1,
                     "should_have_timelock": recheck_count % 2 == 1 and recheck_count > 0
                 }
             }
