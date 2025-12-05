@@ -795,7 +795,7 @@ def check_attendance():
         
         # 4. 출석 기록 생성/수정
         attendance_record = {
-            "student_id": data['student_id"],
+            "student_id": data['student_id'],
             "week_id": week_id,
             "status": status,
             "date": now.strftime("%Y-%m-%d"),
