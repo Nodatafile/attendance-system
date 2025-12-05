@@ -811,9 +811,19 @@ def check_attendance():
         if existing_record:
             # 기존 기록이 있으면 재인식
             current_count = existing_record.get("recheck_count", 0)
-            recheck_count = current_count + 1
-            first_check_time = existing_record.get("first_check_time", now)
-            is_first_check = False
+
+             # 샘플 데이터인지 확인 (notes에 "샘플 데이터"가 있는지)
+            is_sample_data = "샘플 데이터" in existing_record.get("notes", "")
+
+             if is_sample_data and current_recheck == 0:
+                # 샘플 데이터는 첫 인식으로 처리
+                recheck_count = 1  # 첫 인식 완료
+                message = "출석이 체크되었습니다 (첫 인식)"
+                has_time_limit = False
+             else:     
+                recheck_count = current_count + 1
+                first_check_time = existing_record.get("first_check_time", now)
+                is_first_check = False
         else:
             # 첫 인식
             recheck_count = 1  # 첫 인식 완료 = 1
