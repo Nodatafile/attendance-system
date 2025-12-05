@@ -801,43 +801,27 @@ def check_attendance():
         
         # 기존 기록 확인
         existing_record = db.attendance.find_one({
-            "student_id": data['student_id"],
+            "student_id": data['student_id'],
             "week_id": week_id
         })
         
-        # ★★★ 재인식 횟수 계산 - 명확하게 ★★★
+        # 재인식 횟수 계산
         if existing_record:
-            # 기존 기록이 있으면: 재인식 횟수 +1
             recheck_count = existing_record.get("recheck_count", 0) + 1
             first_check_time = existing_record.get("first_check_time", now)
         else:
-            # 첫 인식: 재인식 횟수 = 0
             recheck_count = 0
             first_check_time = now
         
-        # recheck_count 기준:
-        # 0: 첫 인식 - 타임어택 없음
-        # 1: 두번째 인식 - 타임어택 시작 (15분)
-        # 2: 세번째 인식 - 타임어택 해제
-        # 3: 네번째 인식 - 타임어택 시작 (15분)
-        # 4: 다섯번째 인식 - 타임어택 해제
-        # 5: 여섯번째 인식 - 타임어택 시작 (15분)
-        # ...
-        # 홀수(1,3,5...): 타임어택 시작
-        # 짝수(2,4,6...): 타임어택 해제
-        # (0은 특별 케이스: 타임어택 없음)
+        # ★★★ 패턴 결정 ★★★
+        status = "출석"
         
-        status = "출석"  # 무조건 출석
-        expires_at = None
-        
+        # 패턴: 0(없음), 1(있음), 2(없음), 3(있음), 4(없음), 5(있음)...
         if recheck_count == 0:
-            # 첫 인식: 타임어택 없음
             expires_at = None
         elif recheck_count % 2 == 1:  # 홀수: 1,3,5...
-            # 두번째, 네번째, 여섯번째... 인식: 타임어택 시작
             expires_at = now + timedelta(minutes=15)
         else:  # 짝수: 2,4,6...
-            # 세번째, 다섯번째, 일곱번째... 인식: 타임어택 해제
             expires_at = None
         
         # 메시지 결정
@@ -848,14 +832,12 @@ def check_attendance():
         else:
             message = f"재인식되었습니다 ({recheck_count}회) - 타임어택 해제됨"
         
-        # 출석 기록
-        attendance_record = {
-            "student_id": data['student_id'],
-            "week_id": week_id,
+        # ★★★ 명시적으로 모든 필드 설정 ★★★
+        update_data = {
             "status": status,
             "date": now.strftime("%Y-%m-%d"),
             "timestamp": now,
-            "expires_at": expires_at,
+            "expires_at": expires_at,  # 명시적으로 None으로 설정
             "is_auto_absent_processed": False,
             "recheck_count": recheck_count,
             "first_check_time": first_check_time,
@@ -865,15 +847,21 @@ def check_attendance():
             "notes": f"재인식 {recheck_count}회 - 패턴: {'홀수-타임어택' if recheck_count % 2 == 1 else '짝수-해제' if recheck_count > 0 else '첫인식'}"
         }
         
-        # 업데이트 또는 삽입
-        db.attendance.update_one(
+        # ★★★ $set 연산자로 모든 필드 강제 업데이트 ★★★
+        result = db.attendance.update_one(
             {
                 "student_id": data['student_id'],
                 "week_id": week_id
             },
-            {"$set": attendance_record},
+            {
+                "$set": update_data  # 모든 필드를 명시적으로 업데이트
+            },
             upsert=True
         )
+        
+        # 디버그 정보
+        print(f"DEBUG: recheck_count={recheck_count}, expires_at={expires_at}")
+        print(f"DEBUG: Update result - matched: {result.matched_count}, modified: {result.modified_count}")
         
         return jsonify({
             "success": True, 
@@ -885,19 +873,27 @@ def check_attendance():
                 "student_name": student["name"],
                 "expires_at": expires_at.isoformat() if expires_at else None,
                 "recheck_count": recheck_count,
-                "timelock_cycle": attendance_record["timelock_cycle"],
+                "timelock_cycle": update_data["timelock_cycle"],
                 "is_in_timelock": expires_at is not None,
                 "first_check_time": first_check_time.isoformat(),
                 "pattern_info": {
                     "count": recheck_count,
                     "type": "first" if recheck_count == 0 else "odd_start" if recheck_count % 2 == 1 else "even_end",
-                    "should_have_timelock": recheck_count % 2 == 1 and recheck_count > 0
+                    "should_have_timelock": recheck_count % 2 == 1 and recheck_count > 0,
+                    "actual_has_timelock": expires_at is not None
+                },
+                "debug": {
+                    "matched_count": result.matched_count,
+                    "modified_count": result.modified_count,
+                    "upserted_id": str(result.upserted_id) if result.upserted_id else None
                 }
             }
         })
         
     except Exception as e:
         print(f"ERROR in check_attendance: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"success": False, "error": "DATABASE_ERROR", "message": str(e)}), 500
         
 @app.route('/api/attendance/process-auto-absent', methods=['POST', 'GET'])
