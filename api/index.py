@@ -1036,6 +1036,65 @@ def get_recheck_status(student_id, week):
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route('/api/debug/timelock-test', methods=['POST'])
+def debug_timelock_test():
+    """타임어택 디버깅 테스트"""
+    try:
+        db = get_db()
+        if db is None:
+            return jsonify({"success": False, "error": "DATABASE_ERROR"}), 500
+        
+        data = request.get_json()
+        student_id = data.get('student_id', 2007720116)
+        week = data.get('week', 1)
+        
+        # 현재 기록 확인
+        record = db.attendance.find_one({
+            "student_id": student_id,
+            "week_id": week
+        })
+        
+        test_scenarios = []
+        
+        # 다양한 recheck_count 시나리오 테스트
+        for recheck_count in [1, 2, 3, 4, 5]:
+            is_odd = recheck_count % 2 == 1
+            
+            if recheck_count == 1:
+                expected_timelock = False
+                desc = "첫인식-없음"
+            elif is_odd:
+                expected_timelock = True
+                desc = f"홀수({recheck_count})-있음"
+            else:
+                expected_timelock = False
+                desc = f"짝수({recheck_count})-없음"
+            
+            test_scenarios.append({
+                "recheck_count": recheck_count,
+                "is_odd": is_odd,
+                "expected_timelock": expected_timelock,
+                "description": desc
+            })
+        
+        return jsonify({
+            "success": True,
+            "current_record": {
+                "exists": record is not None,
+                "recheck_count": record.get("recheck_count") if record else None,
+                "expires_at": record.get("expires_at") if record else None,
+                "has_timelock_field": "expires_at" in record if record else False
+            },
+            "timelock_logic": {
+                "rule": "recheck_count 기준: 1=첫인식(없음), 홀수=있음, 짝수=없음",
+                "examples": test_scenarios
+            },
+            "note": "타임어택은 recheck_count가 홀수(3,5,7...)일 때만 설정됨"
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @app.route('/api/attendance/student/<student_id>', methods=['GET'])
 def get_student_attendance(student_id):
     """학생별 출석 기록"""
