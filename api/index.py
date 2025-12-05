@@ -155,14 +155,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-01", 
                 "timestamp": now,
-                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
+                "expires_at": now + timedelta(minutes=15),
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now,
-                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
-                "first_check_time": now,
-                "recheck_time": None,
-                "notes": "샘플 데이터 - 첫 인식"
+                "last_updated": now
             },
             {
                 "student_id": 2022322035, 
@@ -170,14 +166,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-01", 
                 "timestamp": now,
-                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
+                "expires_at": now + timedelta(minutes=15),
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now,
-                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
-                "first_check_time": now,
-                "recheck_time": None,
-                "notes": "샘플 데이터 - 첫 인식"
+                "last_updated": now
             },
             {
                 "student_id": 2023205106, 
@@ -185,14 +177,10 @@ def initialize_database():
                 "status": "지각", 
                 "date": "2024-03-01", 
                 "timestamp": now,
-                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
+                "expires_at": now + timedelta(minutes=15),
                 "is_auto_absent_processed": False,
-                "original_status": "출석",
-                "last_updated": now,
-                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
-                "first_check_time": now,
-                "recheck_time": None,
-                "notes": "샘플 데이터 - 첫 인식"
+                "original_status": "지각",
+                "last_updated": now
             },
             {
                 "student_id": 2023321012, 
@@ -200,14 +188,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-01", 
                 "timestamp": now,
-                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
+                "expires_at": now + timedelta(minutes=15),
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now,
-                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
-                "first_check_time": now,
-                "recheck_time": None,
-                "notes": "샘플 데이터 - 첫 인식"
+                "last_updated": now
             },
             {
                 "student_id": 2024405040, 
@@ -215,14 +199,10 @@ def initialize_database():
                 "status": "결석", 
                 "date": "2024-03-01", 
                 "timestamp": now,
-                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
+                "expires_at": now + timedelta(minutes=15),
                 "is_auto_absent_processed": False,
-                "original_status": "출석",
-                "last_updated": now,
-                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
-                "first_check_time": now,
-                "recheck_time": None,
-                "notes": "샘플 데이터 - 첫 인식"
+                "original_status": "결석",
+                "last_updated": now
             },
             
             # 2주차
@@ -232,14 +212,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-08", 
                 "timestamp": now,
-                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
+                "expires_at": now + timedelta(minutes=15),
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now,
-                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
-                "first_check_time": now,
-                "recheck_time": None,
-                "notes": "샘플 데이터 - 첫 인식"
+                "last_updated": now
             },
             {
                 "student_id": 2022322035, 
@@ -247,14 +223,10 @@ def initialize_database():
                 "status": "조퇴", 
                 "date": "2024-03-08", 
                 "timestamp": now,
-                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
+                "expires_at": now + timedelta(minutes=15),
                 "is_auto_absent_processed": False,
-                "original_status": "출석",
-                "last_updated": now,
-                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
-                "first_check_time": now,
-                "recheck_time": None,
-                "notes": "샘플 데이터 - 첫 인식"
+                "original_status": "조퇴",
+                "last_updated": now
             },
             {
                 "student_id": 2023205106, 
@@ -262,14 +234,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-08", 
                 "timestamp": now,
-                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
+                "expires_at": now + timedelta(minutes=15),
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now,
-                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
-                "first_check_time": now,
-                "recheck_time": None,
-                "notes": "샘플 데이터 - 첫 인식"
+                "last_updated": now
             },
             {
                 "student_id": 2023321012, 
@@ -277,14 +245,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-08", 
                 "timestamp": now,
-                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
+                "expires_at": now + timedelta(minutes=15),
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now,
-                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
-                "first_check_time": now,
-                "recheck_time": None,
-                "notes": "샘플 데이터 - 첫 인식"
+                "last_updated": now
             },
             {
                 "student_id": 2024405040, 
@@ -292,14 +256,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-08", 
                 "timestamp": now,
-                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
+                "expires_at": now + timedelta(minutes=15),
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now,
-                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
-                "first_check_time": now,
-                "recheck_time": None,
-                "notes": "샘플 데이터 - 첫 인식"
+                "last_updated": now
             },
             
             # 3주차
@@ -309,14 +269,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-15", 
                 "timestamp": now,
-                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
+                "expires_at": now + timedelta(minutes=15),
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now,
-                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
-                "first_check_time": now,
-                "recheck_time": None,
-                "notes": "샘플 데이터 - 첫 인식"
+                "last_updated": now
             },
             {
                 "student_id": 2022322035, 
@@ -324,14 +280,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-15", 
                 "timestamp": now,
-                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
+                "expires_at": now + timedelta(minutes=15),
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now,
-                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
-                "first_check_time": now,
-                "recheck_time": None,
-                "notes": "샘플 데이터 - 첫 인식"
+                "last_updated": now
             },
             {
                 "student_id": 2023205106, 
@@ -339,14 +291,10 @@ def initialize_database():
                 "status": "결석", 
                 "date": "2024-03-15", 
                 "timestamp": now,
-                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
+                "expires_at": now + timedelta(minutes=15),
                 "is_auto_absent_processed": False,
-                "original_status": "출석",
-                "last_updated": now,
-                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
-                "first_check_time": now,
-                "recheck_time": None,
-                "notes": "샘플 데이터 - 첫 인식"
+                "original_status": "결석",
+                "last_updated": now
             },
             {
                 "student_id": 2023321012, 
@@ -354,14 +302,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-15", 
                 "timestamp": now,
-                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
+                "expires_at": now + timedelta(minutes=15),
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now,
-                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
-                "first_check_time": now,
-                "recheck_time": None,
-                "notes": "샘플 데이터 - 첫 인식"
+                "last_updated": now
             },
             {
                 "student_id": 2024405040, 
@@ -369,14 +313,10 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-15", 
                 "timestamp": now,
-                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
+                "expires_at": now + timedelta(minutes=15),
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now,
-                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
-                "first_check_time": now,
-                "recheck_time": None,
-                "notes": "샘플 데이터 - 첫 인식"
+                "last_updated": now
             }
         ]
         
@@ -389,11 +329,6 @@ def initialize_database():
         db.students.insert_many(sample_students)
         db.weeks.insert_many(sample_weeks) 
         db.attendance.insert_many(sample_attendance)
-
-        # 인덱스 생성
-        db.attendance.create_index([("student_id", 1), ("week_id", 1)], unique=True)
-        db.attendance.create_index([("expires_at", 1)])
-        db.attendance.create_index([("is_auto_absent_processed", 1)])
 
         print("✅ 데이터베이스 초기화 완료 ")
         return True
@@ -971,7 +906,7 @@ def check_attendance():
         print(f"ERROR in check_attendance: {str(e)}")
         print(traceback.format_exc())
         return jsonify({"success": False, "error": "DATABASE_ERROR", "message": str(e)}), 500
-        
+
 @app.route('/api/attendance/process-auto-absent', methods=['POST', 'GET'])
 def process_auto_absent():
     """타임어택 만료시 자동 결석 처리 - 짝수번째 재인식 후"""
