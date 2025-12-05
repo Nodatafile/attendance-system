@@ -840,7 +840,7 @@ def check_attendance():
             should_set_expires_at = True
             
             if recheck_count == 2:
-                message = "출석이 체크되었습니다 (첫 인식)"
+                message = "재인식되었습니다 - 🚨 15분 내 재인식 필요! (2회차)"
             else:
                 message = f"재인식되었습니다 - 🚨 15분 내 재인식 필요! ({recheck_count}회차)"
         
