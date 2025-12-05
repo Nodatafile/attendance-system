@@ -879,7 +879,7 @@ def check_attendance():
                 "student_name": student["name"],
                 "expires_at": expires_at.isoformat() if expires_at else None,
                 "recheck_count": recheck_count,
-                "timelock_cycle": update_data["timelock_cycle"],
+                "timelock_cycle": set_data["timelock_cycle"],
                 "is_in_timelock": expires_at is not None,
                 "first_check_time": first_check_time.isoformat(),
                 "pattern_info": {
@@ -921,27 +921,8 @@ def process_auto_absent():
                 
                 # ★★★ 홀수번째 재인식인지 확인 (1,3,5...) ★★★
                 if recheck_count > 0 and recheck_count % 2 == 1:
-                    expires_at = record.get("expires_at")
-                    time_over = (now - expires_at).total_seconds() / 60
+                    # ... 결석 처리 로직
                     
-                    result = db.attendance.update_one(
-                        {"_id": record["_id"]},
-                        {
-                            "$set": {
-                                "status": "결석",
-                                "is_auto_absent_processed": True,
-                                "auto_processed_at": now,
-                                "notes": f"{record.get('notes', '')}\n[⏰ 홀수회차({recheck_count}회) 타임어택 만료 → 자동 결석]"
-                            }
-                        }
-                    )
-                    
-                    if result.modified_count > 0:
-                        processed_count += 1
-                        
-            except Exception as e:
-                print(f"처리 실패: {e}")
-        
         return jsonify({
             "success": True,
             "message": f"{processed_count}건 자동 결석 처리됨",
@@ -951,9 +932,6 @@ def process_auto_absent():
                 "condition": "홀수번째 재인식(1,3,5...) 후 15분 내 재인식 없음"
             }
         })
-        
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/attendance/recheck-status/<int:student_id>/<int:week>', methods=['GET'])
 def get_recheck_status(student_id, week):
