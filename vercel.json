@@ -14,5 +14,11 @@
   ],
   "env": {
     "PYTHONPATH": "/var/task/api:/var/task"
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/attendance/process-auto-absent",
+      "schedule": "*/5 * * * *"
+    }
+  ]
 }
