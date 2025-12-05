@@ -767,6 +767,7 @@ def get_attendance():
 
 @app.route('/api/attendance/check', methods=['POST'])
 def check_attendance():
+    """출석 체크 - 타임어택 로직 수정"""
     try:
         data = request.get_json()
         if not data:
@@ -806,44 +807,60 @@ def check_attendance():
             "week_id": week_id
         })
         
-        # ★★★ 재인식 횟수 계산 (샘플 데이터 처리) ★★★
+        # ★★★ 재인식 횟수 계산 - 명확하게 ★★★
         if existing_record:
-            current_recheck = existing_record.get("recheck_count", 0)
-            
-            # 샘플 데이터 여부 확인
-            is_sample_data = "샘플 데이터" in existing_record.get("notes", "")
-            
-            if is_sample_data:
-                # 샘플 데이터는 실제 첫 인식처럼 처리
-                if current_recheck == 1:  # 샘플 데이터는 recheck_count=1
-                    # 첫 API 호출: 샘플 데이터를 첫 인식으로 업데이트
-                    recheck_count = 1  # 첫 인식 완료 상태 유지
-                    message = "출석이 체크되었습니다 (첫 인식)"
-                    expires_at = None
-                    has_time_limit = False
-                else:
-                    # 재인식
-                    recheck_count = current_recheck + 1
-                    has_time_limit = recheck_count % 2 == 1  # 홀수면 타임어택
-                    expires_at = now + timedelta(minutes=15) if has_time_limit else None
-                    message = f"재인식되었습니다 (재인식 #{recheck_count}회)" + (" - 🚨 15분 내 재인식 필요!" if has_time_limit else " - 타임어택 해제됨")
-            else:
-                # 일반 재인식
-                recheck_count = current_recheck + 1
-                has_time_limit = recheck_count % 2 == 1  # 홀수면 타임어택
-                expires_at = now + timedelta(minutes=15) if has_time_limit else None
-                message = f"재인식되었습니다 (재인식 #{recheck_count}회)" + (" - 🚨 15분 내 재인식 필요!" if has_time_limit else " - 타임어택 해제됨")
-            
+            current_count = existing_record.get("recheck_count", 0)
+            # 재인식 횟수 증가
+            recheck_count = current_count + 1
             first_check_time = existing_record.get("first_check_time", now)
+            is_new_record = False
         else:
-            # 완전히 새로운 첫 인식
-            recheck_count = 1  # 첫 인식 완료
+            # 첫 인식
+            recheck_count = 1  # 첫 인식 완료 = 1
             first_check_time = now
+            is_new_record = True
+        
+        # ★★★ 타임어택 로직 - 단순화 ★★★
+        # 재인식 횟수 기준:
+        # 1: 첫 인식 완료 - 타임어택 없음
+        # 2: 재인식 1회 - 타임어택 없음 (짝수)
+        # 3: 재인식 2회 - 타임어택 있음 (홀수, 15분)
+        # 4: 재인식 3회 - 타임어택 없음 (짝수)
+        # 5: 재인식 4회 - 타임어택 있음 (홀수, 15분)
+        # ...
+        
+        # 홀수/짝수 판단 (1부터 시작)
+        is_odd = recheck_count % 2 == 1  # 1,3,5... = True, 2,4,6... = False
+        
+        # 타임어택 결정
+        if recheck_count == 1:
+            # 첫 인식 완료 - 타임어택 없음
             message = "출석이 체크되었습니다 (첫 인식)"
             expires_at = None
             has_time_limit = False
+        elif is_odd:
+            # 홀수번째 재인식 (3,5,7...) - 타임어택 있음
+            message = f"재인식되었습니다 (재인식 #{recheck_count}회) - 🚨 15분 내 재인식 필요!"
+            expires_at = now + timedelta(minutes=15)
+            has_time_limit = True
+        else:
+            # 짝수번째 재인식 (2,4,6...) - 타임어택 없음
+            message = f"재인식되었습니다 (재인식 #{recheck_count}회) - 타임어택 해제됨"
+            expires_at = None
+            has_time_limit = False
         
-        # 업데이트 데이터
+        # ★★★ 디버그 정보 출력 ★★★
+        print(f"\n=== 출석 체크 디버그 ===")
+        print(f"student_id: {student_id}, week: {week_id}")
+        print(f"existing_record: {'있음' if existing_record else '없음'}")
+        print(f"recheck_count: {recheck_count} (이전: {existing_record.get('recheck_count') if existing_record else '없음'})")
+        print(f"is_odd: {is_odd}")
+        print(f"has_time_limit: {has_time_limit}")
+        print(f"expires_at: {expires_at}")
+        print(f"message: {message}")
+        print("=====================\n")
+        
+        # 업데이트 데이터 준비
         update_data = {
             "student_id": student_id,
             "week_id": week_id,
@@ -855,7 +872,7 @@ def check_attendance():
             "first_check_time": first_check_time,
             "recheck_time": now if existing_record else None,
             "last_updated": now,
-            "notes": f"재인식 {recheck_count}회 - {'샘플 업데이트' if existing_record and '샘플 데이터' in existing_record.get('notes', '') else '실제 데이터'}"
+            "notes": f"재인식 {recheck_count}회 - {'홀수-타임어택' if has_time_limit else '짝수-해제' if recheck_count > 1 else '첫인식'}"
         }
         
         # expires_at 처리
@@ -863,16 +880,18 @@ def check_attendance():
             update_data["expires_at"] = expires_at
             update_operation = {"$set": update_data}
         else:
+            # 타임어택 없으면 expires_at 필드 제거
             update_operation = {"$set": update_data, "$unset": {"expires_at": ""}}
         
-        # 업데이트 실행
+        # MongoDB 업데이트
         result = db.attendance.update_one(
             {"student_id": student_id, "week_id": week_id},
             update_operation,
             upsert=True
         )
         
-        return jsonify({
+        # 응답 데이터
+        response_data = {
             "success": True, 
             "message": message,
             "data": {
@@ -882,15 +901,23 @@ def check_attendance():
                 "student_name": student["name"],
                 "expires_at": expires_at.isoformat() if expires_at else None,
                 "recheck_count": recheck_count,
-                "has_time_limit": has_time_limit,
-                "is_in_timelock": has_time_limit,
+                "has_time_limit": has_time_limit,  # 명확한 타임어택 여부
+                "is_in_timelock": has_time_limit,  # 동일 값
+                "is_odd": is_odd,
                 "first_check_time": first_check_time.isoformat(),
-                "is_sample_data": existing_record and "샘플 데이터" in existing_record.get("notes", "") if existing_record else False
+                "pattern_info": {
+                    "count": recheck_count,
+                    "description": f"{recheck_count}회 - {'홀수(타임어택)' if is_odd and recheck_count > 1 else '짝수(해제)' if recheck_count > 1 else '첫인식'}"
+                }
             }
-        })
+        }
+        
+        return jsonify(response_data)
         
     except Exception as e:
         print(f"ERROR in check_attendance: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"success": False, "error": "DATABASE_ERROR", "message": str(e)}), 500
         
 @app.route('/api/attendance/process-auto-absent', methods=['POST', 'GET'])
