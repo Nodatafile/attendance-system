@@ -805,53 +805,30 @@ def check_attendance():
             "week_id": week_id
         })
         
-        # 2. 재인식 여부 및 상태 결정
-        is_recheck = False
+        # ★★★ 핵심: 기존 상태와 상관없이 재인식 횟수만으로 결정 ★★★
+        is_recheck = existing_record is not None
+        recheck_count = existing_record.get("recheck_count", 0) + 1 if existing_record else 0
+        first_check_time = existing_record.get("first_check_time", now) if existing_record else now
+        
+        # 무조건 출석으로 설정
         status = "출석"
-        recheck_count = 0
+        
+        # ★★★ 타임어택 로직: 2,4,6... 짝수번째 재인식에서만 시작 ★★★
+        # recheck_count: 0(첫인식), 1(재인식1), 2(재인식2), 3(재인식3)...
         expires_at = None
-        first_check_time = now
         
-        if existing_record:
-            # 기존 기록이 있으면 재인식
-            is_recheck = True
-            recheck_count = existing_record.get("recheck_count", 0) + 1
-            
-            # 첫 인식 시간 유지
-            first_check_time = existing_record.get("first_check_time", now)
-            
-            # ★★★ 단순화된 로직 ★★★
-            # 현재 상태 가져오기
-            current_status = existing_record.get("status", "출석")
-            
-            # 지각/조퇴/공결/결석 상태면 타임어택 없음, 상태 유지
-            if current_status in ["지각", "조퇴", "공결", "결석"]:
-                status = current_status
-                expires_at = None
-            else:
-                # 출석 상태인 경우
-                status = "출석"
-                
-                # ★★★ 핵심: 짝수번째 재인식(2,4,6...)에서만 타임어택 ★★★
-                if recheck_count >= 2 and recheck_count % 2 == 0:
-                    # 짝수번째 재인식: 타임어택 시작
-                    expires_at = now + timedelta(minutes=15)
-                else:
-                    # 홀수번째 재인식 또는 0,1회: 타임어택 없음
-                    expires_at = None
-        
+        if recheck_count >= 2 and recheck_count % 2 == 0:
+            # 짝수번째 재인식(2,4,6...): 타임어택 시작
+            expires_at = now + timedelta(minutes=15)
         else:
-            # 첫 인식
-            is_recheck = False
-            recheck_count = 0
-            status = "출석"
-            expires_at = None  # 첫 인식은 타임어택 없음
-                
-        # 3. 출석 기록 생성/수정
+            # 홀수번째 재인식(1,3,5...) 또는 0회: 타임어택 없음
+            expires_at = None
+        
+        # 2. 출석 기록 생성/수정
         attendance_record = {
             "student_id": data['student_id'],
             "week_id": week_id,
-            "status": status,
+            "status": status,  # 무조건 출석
             "date": now.strftime("%Y-%m-%d"),
             "timestamp": now,
             "expires_at": expires_at,
@@ -862,30 +839,31 @@ def check_attendance():
             "recheck_count": recheck_count,
             "first_check_time": first_check_time,
             "recheck_time": now if is_recheck else None,
-            "timelock_cycle": recheck_count // 2 if recheck_count >= 2 else 0,  # 타임어택 사이클 번호
+            "timelock_cycle": recheck_count // 2 if recheck_count >= 2 else 0,
+            "is_in_timelock": expires_at is not None,
             "notes": existing_record.get("notes", "") if existing_record else ""
         }
         
-        # 상태 변경 메모 추가
+        # 상태 변경 로그 (기존 상태와 다를 경우)
         if existing_record and existing_record.get("status") != status:
             old_status = existing_record.get("status")
             notes = attendance_record.get("notes", "")
-            notes += f"\n[{old_status} → {status} ({recheck_count}회 재인식 - {now.strftime('%H:%M:%S')})]"
+            notes += f"\n[{old_status} → {status} ({recheck_count}회 재인식)]"
             attendance_record["notes"] = notes
         
-        # 타임어택 상태 메모 추가
+        # 타임어택 상태 로그
         if expires_at:
             notes = attendance_record.get("notes", "")
             if not existing_record or not existing_record.get("expires_at"):
-                notes += f"\n[🚨 타임어택 시작: {expires_at.strftime('%H:%M:%S')}까지 재인식 필요 (사이클 {attendance_record['timelock_cycle']})]"
+                notes += f"\n[⏰ 타임어택 시작: {expires_at.strftime('%H:%M:%S')}까지 재인식 필요 (사이클 {attendance_record['timelock_cycle']})]"
             attendance_record["notes"] = notes
         elif existing_record and existing_record.get("expires_at"):
-            # 타임어택이 해제된 경우 (홀수번째 재인식으로)
+            # 타임어택이 해제된 경우
             notes = attendance_record.get("notes", "")
             notes += f"\n[✅ 타임어택 해제: 안전한 상태]"
             attendance_record["notes"] = notes
         
-        # 4. 업데이트 또는 삽입
+        # 3. 업데이트 또는 삽입
         result = db.attendance.update_one(
             {
                 "student_id": attendance_record["student_id"],
@@ -895,19 +873,18 @@ def check_attendance():
             upsert=True
         )
         
-        # 5. 응답 메시지
+        # 4. 응답 메시지
         if not is_recheck:
             message = "출석이 체크되었습니다 (첫 인식)"
         else:
             if expires_at:
-                # 짝수번째 재인식 (타임어택 시작)
                 message = f"재인식되었습니다 ({recheck_count}회) - 🚨 15분 내 재인식 필요!"
             else:
                 if recheck_count == 1:
                     message = "재인식되었습니다 (1회) - 안전한 상태"
-                elif recheck_count % 2 == 1:  # 홀수번째 재인식
+                elif recheck_count % 2 == 1:  # 홀수번째
                     message = f"재인식되었습니다 ({recheck_count}회) - 타임어택 해제됨"
-                else:  # recheck_count가 0인 경우 (이론상 없음)
+                else:
                     message = f"재인식되었습니다 ({recheck_count}회)"
         
         return jsonify({
@@ -925,64 +902,67 @@ def check_attendance():
                 "is_in_timelock": expires_at is not None,
                 "next_recheck_deadline": expires_at.isoformat() if expires_at else None,
                 "first_check_time": first_check_time.isoformat(),
-                "needs_next_recheck": expires_at is not None,  # 다음 재인식 필요 여부
-                "pattern_info": {
-                    "is_even_recheck": recheck_count % 2 == 0,
-                    "next_is_timelock": (recheck_count + 1) % 2 == 0 and (recheck_count + 1) >= 2
+                "needs_next_recheck": expires_at is not None,
+                "pattern": {
+                    "count": recheck_count,
+                    "is_even": recheck_count % 2 == 0,
+                    "has_timelock": expires_at is not None,
+                    "expected_timelock": recheck_count >= 2 and recheck_count % 2 == 0
                 }
             }
         })
         
     except Exception as e:
-        import traceback
         print(f"ERROR in check_attendance: {str(e)}")
-        print(traceback.format_exc())
+        import traceback
+        traceback.print_exc()
         return jsonify({"success": False, "error": "DATABASE_ERROR", "message": str(e)}), 500
 
 @app.route('/api/attendance/process-auto-absent', methods=['POST', 'GET'])
 def process_auto_absent():
-    """타임어택 만료시 자동 결석 처리 - 짝수번째 재인식 후"""
+    """짝수번째 재인식 후 15분 내 재인식 없으면 결석 처리"""
     try:
         db = get_db()
         if db is None:
             return jsonify({"success": False, "error": "DATABASE_ERROR"}), 500
         
         now = datetime.now()
-        print(f"[{now.isoformat()}] 자동 결석 처리 시작")
         
-         # ★★★ 조건: 짝수번째 재인식(2,4,6...)에서 시작된 타임어택 ★★★
+        # ★★★ 조건: 짝수번째 재인식(2,4,6...)에서 시작된 타임어택이 만료된 경우 ★★★
         expired_records = list(db.attendance.find({
             "status": "출석",
             "expires_at": {"$exists": True, "$lt": now},
-            "is_auto_absent_processed": False
+            "is_auto_absent_processed": False,
+            "is_in_timelock": True  # 현재 타임어택 중인 기록만
         }))
         
-         # 추가 필터링: 짝수번째 재인식인지 확인
-        records_to_process = []
-        for record in expired_records:
-            recheck_count = record.get("recheck_count", 0)
-            # 2,4,6... 짝수번째 재인식이면서 타임어택 만료된 경우
-            if recheck_count >= 2 and recheck_count % 2 == 0:
-                records_to_process.append(record)
-        
         processed_count = 0
-        for record in records_to_process:
+        for record in expired_records:
             try:
-                result = db.attendance.update_one(
-                    {"_id": record["_id"]},
-                    {
-                        "$set": {
-                            "status": "결석",
-                            "is_auto_absent_processed": True,
-                            "auto_processed_at": now,
-                            "notes": f"{record.get('notes', '')}\n[짝수번째 재인식({record.get('recheck_count', 0)}회) 후 15분 내 재인식 없음 → 결석]"
-                        }
-                    }
-                )
+                recheck_count = record.get("recheck_count", 0)
+                timelock_cycle = record.get("timelock_cycle", 0)
                 
-                if result.modified_count > 0:
-                    processed_count += 1
+                # ★★★ 짝수번째 재인식인지 확인 (2,4,6...) ★★★
+                if recheck_count >= 2 and recheck_count % 2 == 0:
+                    expires_at = record.get("expires_at")
+                    time_over = (now - expires_at).total_seconds() / 60
                     
+                    result = db.attendance.update_one(
+                        {"_id": record["_id"]},
+                        {
+                            "$set": {
+                                "status": "결석",
+                                "is_auto_absent_processed": True,
+                                "auto_processed_at": now,
+                                "last_updated": now,
+                                "notes": f"{record.get('notes', '')}\n[⏰ 타임어택 만료! {expires_at.strftime('%H:%M:%S')}까지 재인식 없음 → 자동 결석 (재인식 {recheck_count}회, 사이클 {timelock_cycle}, 지연 {time_over:.1f}분)]"
+                            }
+                        }
+                    )
+                    
+                    if result.modified_count > 0:
+                        processed_count += 1
+                        
             except Exception as e:
                 print(f"처리 실패: {e}")
         
@@ -991,7 +971,8 @@ def process_auto_absent():
             "message": f"{processed_count}건 자동 결석 처리됨",
             "data": {
                 "processed_count": processed_count,
-                "timestamp": now.isoformat()
+                "timestamp": now.isoformat(),
+                "condition": "짝수번째 재인식(2,4,6...) 후 15분 내 재인식 없음"
             }
         })
         
