@@ -330,6 +330,11 @@ def initialize_database():
         db.weeks.insert_many(sample_weeks) 
         db.attendance.insert_many(sample_attendance)
 
+        # 인덱스 생성
+        db.attendance.create_index([("student_id", 1), ("week_id", 1)], unique=True)
+        db.attendance.create_index([("expires_at", 1)])
+        db.attendance.create_index([("is_auto_absent_processed", 1)])
+
         print("✅ 데이터베이스 초기화 완료 ")
         return True
     except Exception as e:
