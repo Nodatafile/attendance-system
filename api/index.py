@@ -806,76 +806,68 @@ def check_attendance():
             "week_id": week_id
         })
         
-        # ★★★ 재인식 횟수 계산 수정 ★★★
+        # ★★★ 재인식 횟수 계산 (샘플 데이터 처리) ★★★
         if existing_record:
-            # 기존 기록이 있으면: 재인식 횟수 +1
             current_recheck = existing_record.get("recheck_count", 0)
             
-            # ★★★ 샘플 데이터 구분: 상태가 "출석"이고 recheck_count=0인 샘플 데이터는 첫 인식으로 처리 ★★★
-            if current_recheck == 0 and existing_record.get("status") == "출석" and "샘플 데이터" in existing_record.get("notes", ""):
-                # 샘플 데이터는 무시하고 첫 인식으로 처리
-                recheck_count = 0
-                first_check_time = now
-                is_sample_data = True
+            # 샘플 데이터 여부 확인
+            is_sample_data = "샘플 데이터" in existing_record.get("notes", "")
+            
+            if is_sample_data:
+                # 샘플 데이터는 실제 첫 인식처럼 처리
+                if current_recheck == 1:  # 샘플 데이터는 recheck_count=1
+                    # 첫 API 호출: 샘플 데이터를 첫 인식으로 업데이트
+                    recheck_count = 1  # 첫 인식 완료 상태 유지
+                    message = "출석이 체크되었습니다 (첫 인식)"
+                    expires_at = None
+                    has_time_limit = False
+                else:
+                    # 재인식
+                    recheck_count = current_recheck + 1
+                    has_time_limit = recheck_count % 2 == 1  # 홀수면 타임어택
+                    expires_at = now + timedelta(minutes=15) if has_time_limit else None
+                    message = f"재인식되었습니다 (재인식 #{recheck_count}회)" + (" - 🚨 15분 내 재인식 필요!" if has_time_limit else " - 타임어택 해제됨")
             else:
-                # 실제 재인식
+                # 일반 재인식
                 recheck_count = current_recheck + 1
-                first_check_time = existing_record.get("first_check_time", now)
-                is_sample_data = False
+                has_time_limit = recheck_count % 2 == 1  # 홀수면 타임어택
+                expires_at = now + timedelta(minutes=15) if has_time_limit else None
+                message = f"재인식되었습니다 (재인식 #{recheck_count}회)" + (" - 🚨 15분 내 재인식 필요!" if has_time_limit else " - 타임어택 해제됨")
+            
+            first_check_time = existing_record.get("first_check_time", now)
         else:
-            # 첫 인식
-            recheck_count = 0
+            # 완전히 새로운 첫 인식
+            recheck_count = 1  # 첫 인식 완료
             first_check_time = now
-            is_sample_data = False
-        
-        # ★★★ 타임어택 로직 ★★★
-        status = "출석"
-        
-        if recheck_count == 0:
-            # 첫 인식: 타임어택 없음
             message = "출석이 체크되었습니다 (첫 인식)"
             expires_at = None
             has_time_limit = False
-        elif recheck_count % 2 == 1:  # 홀수: 1,3,5...
-            # 홀수번째 재인식: 타임어택 시작
-            message = f"재인식되었습니다 (재인식 #{recheck_count}회) - 🚨 15분 내 재인식 필요!"
-            expires_at = now + timedelta(minutes=15)
-            has_time_limit = True
-        else:  # 짝수: 2,4,6...
-            # 짝수번째 재인식: 타임어택 해제
-            message = f"재인식되었습니다 (재인식 #{recheck_count}회) - 타임어택 해제됨"
-            expires_at = None
-            has_time_limit = False
         
-        # ★★★ 업데이트 데이터 ★★★
+        # 업데이트 데이터
         update_data = {
             "student_id": student_id,
             "week_id": week_id,
-            "status": status,
+            "status": "출석",
             "date": now.strftime("%Y-%m-%d"),
             "timestamp": now,
-            "expires_at": expires_at,
             "is_auto_absent_processed": False,
             "recheck_count": recheck_count,
             "first_check_time": first_check_time,
-            "recheck_time": now if existing_record and not is_sample_data else None,
+            "recheck_time": now if existing_record else None,
             "last_updated": now,
-            "notes": f"재인식 {recheck_count}회 - 패턴: {'홀수-타임어택' if has_time_limit else '짝수-해제' if recheck_count > 0 else '첫인식'}"
+            "notes": f"재인식 {recheck_count}회 - {'샘플 업데이트' if existing_record and '샘플 데이터' in existing_record.get('notes', '') else '실제 데이터'}"
         }
         
-        # ★★★ 업데이트 연산 구성 ★★★
+        # expires_at 처리
         if has_time_limit:
+            update_data["expires_at"] = expires_at
             update_operation = {"$set": update_data}
         else:
-            # 타임어택 없으면 expires_at 필드 제거
             update_operation = {"$set": update_data, "$unset": {"expires_at": ""}}
         
         # 업데이트 실행
         result = db.attendance.update_one(
-            {
-                "student_id": student_id,
-                "week_id": week_id
-            },
+            {"student_id": student_id, "week_id": week_id},
             update_operation,
             upsert=True
         )
@@ -886,18 +878,14 @@ def check_attendance():
             "data": {
                 "student_id": student_id,
                 "week_id": week_id,
-                "status": status,
+                "status": "출석",
                 "student_name": student["name"],
                 "expires_at": expires_at.isoformat() if expires_at else None,
                 "recheck_count": recheck_count,
-                "has_time_limit": has_time_limit,  # ★★★ 추가: 명확한 타임어택 여부 ★★★
+                "has_time_limit": has_time_limit,
                 "is_in_timelock": has_time_limit,
                 "first_check_time": first_check_time.isoformat(),
-                "pattern_info": {
-                    "count": recheck_count,
-                    "is_odd": recheck_count % 2 == 1,
-                    "should_have_timelock": recheck_count % 2 == 1 and recheck_count > 0
-                }
+                "is_sample_data": existing_record and "샘플 데이터" in existing_record.get("notes", "") if existing_record else False
             }
         })
         
