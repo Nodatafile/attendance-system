@@ -767,7 +767,6 @@ def get_attendance():
 
 @app.route('/api/attendance/check', methods=['POST'])
 def check_attendance():
-    """출석 체크 API - 완전 재작성"""
     try:
         data = request.get_json()
         if not data:
@@ -799,134 +798,103 @@ def check_attendance():
 
         now = datetime.now()
         week_id = int(data['week'])
-        student_id = data['student_id']
         
         # 기존 기록 확인
         existing_record = db.attendance.find_one({
-            "student_id": student_id,
+            "student_id": data['student_id'],
             "week_id": week_id
         })
         
-        # 재인식 횟수 계산 - 명확한 로직
+        # 재인식 횟수 계산
         if existing_record:
-            # 기존 기록이 있으면 재인식
-            current_recheck = existing_record.get("recheck_count", 0)
-            recheck_count = current_recheck + 1
-            is_first_check = False
+            recheck_count = existing_record.get("recheck_count", 0) + 1
             first_check_time = existing_record.get("first_check_time", now)
         else:
-            # 첫 인식
             recheck_count = 0
-            is_first_check = True
             first_check_time = now
         
-        # ★★★ 명확한 타임어택 로직 ★★★
+        # ★★★ 패턴 결정 ★★★
+        status = "출석"
+        
         # 패턴: 0(없음), 1(있음), 2(없음), 3(있음), 4(없음), 5(있음)...
-        
         if recheck_count == 0:
-            # 첫 인식 - 타임어택 없음
-            message = "출석이 체크되었습니다 (첫 인식)"
             expires_at = None
-            has_time_limit = False
-            should_set_expires_at = False
-            should_remove_expires_at = True
-            
-        elif recheck_count % 2 == 1:
-            # 홀수번째 재인식 (1,3,5...) - 타임어택 시작
-            message = f"재인식되었습니다 (재인식 #{recheck_count}회) - 🚨 15분 내 재인식 필요!"
+        elif recheck_count % 2 == 1:  # 홀수: 1,3,5...
             expires_at = now + timedelta(minutes=15)
-            has_time_limit = True
-            should_set_expires_at = True
-            should_remove_expires_at = False
-            
-        else:
-            # 짝수번째 재인식 (2,4,6...) - 타임어택 종료
-            message = f"재인식되었습니다 (재인식 #{recheck_count}회) - 타임어택 해제됨"
+        else:  # 짝수: 2,4,6...
             expires_at = None
-            has_time_limit = False
-            should_set_expires_at = False
-            should_remove_expires_at = True
         
-        # ★★★ 기본 업데이트 데이터 ★★★
+        # 메시지 결정
+        if recheck_count == 0:
+            message = "출석이 체크되었습니다 (첫 인식)"
+        elif expires_at:
+            message = f"재인식되었습니다 ({recheck_count}회) - 🚨 15분 내 재인식 필요!"
+        else:
+            message = f"재인식되었습니다 ({recheck_count}회) - 타임어택 해제됨"
+        
+        # ★★★ 명시적으로 모든 필드 설정 ★★★
         update_data = {
-            "student_id": student_id,
-            "week_id": week_id,
-            "status": "출석",
+            "status": status,
             "date": now.strftime("%Y-%m-%d"),
             "timestamp": now,
+            "expires_at": expires_at,  # 명시적으로 None으로 설정
+            "is_auto_absent_processed": False,
             "recheck_count": recheck_count,
             "first_check_time": first_check_time,
-            "recheck_time": now,
+            "recheck_time": now if existing_record else None,
+            "timelock_cycle": (recheck_count + 1) // 2 if recheck_count > 0 else 0,
             "last_updated": now,
-            "is_auto_absent_processed": False,
-            "notes": f"재인식 {recheck_count}회 - {'타임어택 시작' if has_time_limit else '타임어택 없음' if recheck_count == 0 else '타임어택 종료'}"
+            "notes": f"재인식 {recheck_count}회 - 패턴: {'홀수-타임어택' if recheck_count % 2 == 1 else '짝수-해제' if recheck_count > 0 else '첫인식'}"
         }
         
-        # ★★★ 업데이트 연산 구성 ★★★
-        update_operation = {"$set": update_data}
-        
-        if should_set_expires_at:
-            # 타임어택 설정
-            update_operation["$set"]["expires_at"] = expires_at
-        elif should_remove_expires_at:
-            # 타임어택 제거 - 필드 완전 삭제
-            update_operation["$unset"] = {"expires_at": ""}
-            # 응답용으로 None 설정
-            expires_at = None
-        
-        # ★★★ MongoDB 업데이트 ★★★
+        # ★★★ $set 연산자로 모든 필드 강제 업데이트 ★★★
         result = db.attendance.update_one(
-            {"student_id": student_id, "week_id": week_id},
-            update_operation,
+            {
+                "student_id": data['student_id'],
+                "week_id": week_id
+            },
+            {
+                "$set": update_data  # 모든 필드를 명시적으로 업데이트
+            },
             upsert=True
         )
         
-        # ★★★ 디버깅 로그 ★★★
-        print(f"\n{'='*60}")
-        print(f"🎯 출석 체크 디버그 정보")
-        print(f"{'='*60}")
-        print(f"학생 ID: {student_id}")
-        print(f"주차: {week_id}")
-        print(f"재인식 횟수: {recheck_count} ({'홀수' if recheck_count % 2 == 1 else '짝수' if recheck_count > 0 else '첫인식'})")
-        print(f"첫 인식 여부: {is_first_check}")
-        print(f"타임어택: {'⏰ 있음' if has_time_limit else '✅ 없음'}")
-        print(f"expires_at 설정: {'예' if should_set_expires_at else '아니오'}")
-        print(f"expires_at 제거: {'예' if should_remove_expires_at else '아니오'}")
-        print(f"메시지: {message}")
-        print(f"업데이트 연산: {update_operation}")
-        print(f"{'='*60}\n")
+        # 디버그 정보
+        print(f"DEBUG: recheck_count={recheck_count}, expires_at={expires_at}")
+        print(f"DEBUG: Update result - matched: {result.matched_count}, modified: {result.modified_count}")
         
-        # ★★★ 응답 데이터 ★★★
-        response_data = {
+        return jsonify({
             "success": True, 
             "message": message,
             "data": {
-                "student_id": student_id,
+                "student_id": data['student_id'],
                 "week_id": week_id,
-                "status": "출석",
+                "status": status,
                 "student_name": student["name"],
-                "expires_at": expires_at.isoformat() if expires_at else None,  # None이면 null
+                "expires_at": expires_at.isoformat() if expires_at else None,
                 "recheck_count": recheck_count,
-                "has_time_limit": has_time_limit,  # 명확한 타임어택 여부
-                "is_recheck": not is_first_check,
-                "can_recheck_again": True,
+                "timelock_cycle": update_data["timelock_cycle"],
+                "is_in_timelock": expires_at is not None,
                 "first_check_time": first_check_time.isoformat(),
                 "pattern_info": {
                     "count": recheck_count,
-                    "is_odd": recheck_count % 2 == 1,
-                    "has_timelock": has_time_limit,
-                    "description": f"{recheck_count}회째 - {'타임어택 시작' if has_time_limit else '타임어택 없음' if recheck_count == 0 else '타임어택 종료'}"
+                    "type": "first" if recheck_count == 0 else "odd_start" if recheck_count % 2 == 1 else "even_end",
+                    "should_have_timelock": recheck_count % 2 == 1 and recheck_count > 0,
+                    "actual_has_timelock": expires_at is not None
+                },
+                "debug": {
+                    "matched_count": result.matched_count,
+                    "modified_count": result.modified_count,
+                    "upserted_id": str(result.upserted_id) if result.upserted_id else None
                 }
             }
-        }
-        
-        return jsonify(response_data)
+        })
         
     except Exception as e:
-        print(f"❌ ERROR in check_attendance: {str(e)}")
+        print(f"ERROR in check_attendance: {str(e)}")
         import traceback
         traceback.print_exc()
-        return jsonify({"success": False, "error": "SERVER_ERROR", "message": str(e)}), 500
+        return jsonify({"success": False, "error": "DATABASE_ERROR", "message": str(e)}), 500
         
 @app.route('/api/attendance/process-auto-absent', methods=['POST', 'GET'])
 def process_auto_absent():
@@ -952,24 +920,26 @@ def process_auto_absent():
                 
                 # ★★★ 홀수번째 재인식인지 확인 (1,3,5...) ★★★
                 if recheck_count > 0 and recheck_count % 2 == 1:
-                    # 자동 결석 처리
-                    db.attendance.update_one(
+                    expires_at = record.get("expires_at")
+                    time_over = (now - expires_at).total_seconds() / 60
+                    
+                    result = db.attendance.update_one(
                         {"_id": record["_id"]},
                         {
                             "$set": {
                                 "status": "결석",
                                 "is_auto_absent_processed": True,
-                                "last_updated": now,
-                                "notes": f"자동 결석 처리됨 - {recheck_count}회째 재인식 후 15분 내 재확인 없음"
+                                "auto_processed_at": now,
+                                "notes": f"{record.get('notes', '')}\n[⏰ 홀수회차({recheck_count}회) 타임어택 만료 → 자동 결석]"
                             }
                         }
                     )
-                    processed_count += 1
-                    print(f"자동 결석 처리: 학생 {record['student_id']}, 주차 {record['week_id']}, 재인식 {recheck_count}회")
                     
+                    if result.modified_count > 0:
+                        processed_count += 1
+                        
             except Exception as e:
-                print(f"자동 결석 처리 중 오류: {e}")
-                continue
+                print(f"처리 실패: {e}")
         
         return jsonify({
             "success": True,
@@ -980,6 +950,7 @@ def process_auto_absent():
                 "condition": "홀수번째 재인식(1,3,5...) 후 15분 내 재인식 없음"
             }
         })
+        
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -1005,22 +976,19 @@ def get_recheck_status(student_id, week):
         
         now = datetime.now()
         expires_at = record.get("expires_at")
-        recheck_count = record.get("recheck_count", 0)
         
-        # ★★★ 핵심: 현재 실제 타임어택 상태 계산 ★★★
-        # 1. expires_at 필드가 없는 경우: 타임어택 없음
-        # 2. expires_at 필드가 있고 미래인 경우: 타임어택 있음
-        # 3. expires_at 필드가 있고 과거인 경우: 타임어택 만료 (크론잡이 처리해야 함)
-        
+        # 남은 시간 계산 (만료시간이 있는 경우만)
+        minutes_remaining = None
+        is_expired = False
         has_time_limit = expires_at is not None
-        is_expired = has_time_limit and expires_at < now
-        has_active_timelock = has_time_limit and not is_expired
         
-        # 첫 인식인지 확인
-        is_first_check = recheck_count == 0
+        if expires_at:
+            time_left = (expires_at - now).total_seconds()
+            minutes_remaining = max(0, time_left / 60)
+            is_expired = minutes_remaining <= 0
         
-        # 예상되는 타임어택 패턴
-        expected_has_timelock = recheck_count % 2 == 1 if recheck_count > 0 else False
+        # 첫 인식인지 확인 (재인식 횟수 0)
+        is_first_check = record.get("recheck_count", 0) == 0
         
         return jsonify({
             "success": True,
@@ -1029,74 +997,15 @@ def get_recheck_status(student_id, week):
                 "student_id": student_id,
                 "week_id": week,
                 "status": record["status"],
-                "recheck_count": recheck_count,
+                "recheck_count": record.get("recheck_count", 0),
                 "is_first_check": is_first_check,
-                "has_time_limit_field": has_time_limit,  # expires_at 필드 존재 여부
-                "has_active_timelock": has_active_timelock,  # 현재 활성 타임어택 여부
-                "is_expired": is_expired,
-                "expected_has_timelock": expected_has_timelock,  # 패턴상 예상되는 타임어택
+                "has_time_limit": has_time_limit,  # 타임어택 여부
                 "expires_at": expires_at.isoformat() if expires_at else None,
-                "minutes_remaining": round((expires_at - now).total_seconds() / 60, 1) if has_active_timelock else None,
+                "minutes_remaining": round(minutes_remaining, 1) if minutes_remaining is not None else None,
+                "is_expired": is_expired,
                 "first_check_time": record.get("first_check_time", "").isoformat() if record.get("first_check_time") else None,
                 "last_recheck_time": record.get("recheck_time", "").isoformat() if record.get("recheck_time") else None,
-                "is_auto_absent_processed": record.get("is_auto_absent_processed", False),
-                "notes": record.get("notes", "")
-            },
-            "pattern_info": {
-                "description": f"재인식 {recheck_count}회 - {'홀수(타임어택 예정)' if recheck_count % 2 == 1 else '짝수(타임어택 해제)' if recheck_count > 0 else '첫인식'}",
-                "status_match": has_active_timelock == expected_has_timelock
-            }
-        })
-        
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route('/api/attendance/debug-fix/<int:student_id>/<int:week>', methods=['POST'])
-def debug_fix_timelock(student_id, week):
-    """타임어택 상태 강제 수정 (디버깅용)"""
-    try:
-        db = get_db()
-        if db is None:
-            return jsonify({"success": False, "error": "DATABASE_ERROR"}), 500
-        
-        record = db.attendance.find_one({
-            "student_id": student_id,
-            "week_id": week
-        })
-        
-        if not record:
-            return jsonify({
-                "success": False,
-                "message": "기록이 없습니다"
-            }), 404
-        
-        recheck_count = record.get("recheck_count", 0)
-        now = datetime.now()
-        
-        # 패턴에 맞게 expires_at 설정/제거
-        if recheck_count % 2 == 1:  # 홀수: 타임어택 있어야 함
-            expires_at = now + timedelta(minutes=15)
-            db.attendance.update_one(
-                {"_id": record["_id"]},
-                {"$set": {"expires_at": expires_at}}
-            )
-            message = f"타임어택 설정됨 (재인식 {recheck_count}회, 홀수)"
-        else:  # 짝수 또는 0: 타임어택 없어야 함
-            db.attendance.update_one(
-                {"_id": record["_id"]},
-                {"$unset": {"expires_at": ""}}
-            )
-            message = f"타임어택 제거됨 (재인식 {recheck_count}회, {'첫인식' if recheck_count == 0 else '짝수'})"
-        
-        return jsonify({
-            "success": True,
-            "message": message,
-            "data": {
-                "student_id": student_id,
-                "week_id": week,
-                "recheck_count": recheck_count,
-                "is_odd": recheck_count % 2 == 1,
-                "action": "expires_at 설정" if recheck_count % 2 == 1 else "expires_at 제거"
+                "is_auto_absent_processed": record.get("is_auto_absent_processed", False)
             }
         })
         
