@@ -702,7 +702,7 @@ def get_attendance():
 
 @app.route('/api/attendance/check', methods=['POST'])
 def check_attendance():
-    """출석 체크 - 재인식 1회만 허용"""
+    """출석 체크 - 재인식 횟수 제한 없음"""
     try:
         data = request.get_json()
         if not data:
@@ -754,56 +754,46 @@ def check_attendance():
             "week_id": week_id
         })
         
-        # 2. 재인식 가능 여부 확인
+        # 2. 재인식 여부 확인 (수정: 재인식 횟수 제한 없음)
         is_recheck = False
-        can_recheck = False
         status = "출석"
+        recheck_count = 0
         
         if existing_record:
-            # 이미 기록이 있는 경우
-            if existing_record.get("is_auto_absent_processed", False):
-                # 이미 결석 처리됨 → 새 출석으로 시작
-                is_recheck = False
-                can_recheck = True
+            # 재인식 횟수 계산
+            recheck_count = existing_record.get("recheck_count", 0)
+            current_status = existing_record.get("status", "결석")
+            
+            # 자동 결석 처리 여부 확인
+            is_auto_absent = existing_record.get("is_auto_absent_processed", False)
+            
+            if existing_record.get("status") == "출석" and not is_auto_absent:
+                # 기존 출석 기록이 있고 자동 결석 아닌 경우 → 재인식
+                is_recheck = True
+                recheck_count += 1
                 status = "출석"
+            elif existing_record.get("status") == "결석" or is_auto_absent:
+                # 결석 상태이거나 자동 결석 처리된 경우 → 수동 출석으로 변경
+                is_recheck = True
+                recheck_count += 1
+                status = "출석"
+                print(f"결석 → 출석 변경: {data['student_id']}")
             else:
-                # 아직 처리되지 않음
-                if existing_record.get("has_rechecked", False):
-                    # 이미 재인식 했음 → 더 이상 재인식 불가
-                    is_recheck = True  # 재인식 시도는 했지만
-                    can_recheck = False  # 허용 안됨
-                    status = existing_record["status"]  # 상태 유지
-                else:
-                    # 아직 재인식 안함 → 재인식 가능
-                    can_recheck = True
-                    is_recheck = True  # 이번이 재인식
-                    status = "출석"  # 출석 유지
+                # 기타 상태 (지각, 조퇴, 공결) → 상태 유지
+                is_recheck = True
+                recheck_count += 1
+                status = current_status
         else:
             # 첫 인식
             is_recheck = False
-            can_recheck = True  # 다음에 재인식 가능
+            recheck_count = 0
             status = "출석"
         
-        # 3. 재인식 불가능하면 에러
-        if is_recheck and not can_recheck:
-            return jsonify({
-                "success": False,
-                "error": "RECHECK_NOT_ALLOWED",
-                "message": "재인식은 한 번만 가능합니다"
-            }), 400
+        # 3. 만료 시간 계산
+        # 모든 경우에 15분 후로 만료시간 설정 (재인식 시에도 새로 설정)
+        expires_at = now + timedelta(minutes=15)
         
-        # 4. 만료 시간 계산
-        # 재인식이면 만료시간 유지, 첫 인식이면 15분 후
-        if existing_record and is_recheck and can_recheck:
-            # 재인식: 기존 만료시간 유지
-            expires_at = existing_record.get("expires_at")
-            if not expires_at:
-                expires_at = now + timedelta(minutes=15)
-        else:
-            # 첫 인식: 15분 후 만료
-            expires_at = now + timedelta(minutes=15)
-        
-        # 5. 출석 기록 생성/수정
+        # 4. 출석 기록 생성/수정
         attendance_record = {
             "student_id": data['student_id'],
             "week_id": week_id,
@@ -811,15 +801,26 @@ def check_attendance():
             "date": now.strftime("%Y-%m-%d"),
             "timestamp": now,
             "expires_at": expires_at,
-            "is_auto_absent_processed": False,
-            "original_status": "출석",
+            "is_auto_absent_processed": False,  # 수동 출석/재인식이면 자동 결석 처리 취소
+            "original_status": existing_record.get("original_status", "출석") if existing_record else "출석",
             "last_updated": now,
-            "has_rechecked": is_recheck if can_recheck else existing_record.get("has_rechecked", False),
+            "has_rechecked": True if is_recheck else False,
+            "recheck_count": recheck_count,
             "first_check_time": existing_record.get("first_check_time", now) if existing_record else now,
-            "recheck_time": now if is_recheck and can_recheck else None
+            "recheck_time": now if is_recheck else None
         }
         
-        # 6. 업데이트 또는 삽입
+        # 이전 기록이 있고 상태가 변경된 경우 메모 추가
+        if existing_record and existing_record.get("status") != status:
+            notes = existing_record.get("notes", "")
+            old_status = existing_record.get("status")
+            if existing_record.get("is_auto_absent_processed", False):
+                notes += f"\n[자동 {old_status} → 수동 {status}으로 변경됨 ({now.strftime('%Y-%m-%d %H:%M:%S')}) - 재인식 #{recheck_count}]"
+            else:
+                notes += f"\n[{old_status} → {status}으로 변경됨 ({now.strftime('%Y-%m-%d %H:%M:%S')}) - 재인식 #{recheck_count}]"
+            attendance_record["notes"] = notes
+        
+        # 5. 업데이트 또는 삽입
         result = db.attendance.update_one(
             {
                 "student_id": attendance_record["student_id"],
@@ -829,8 +830,13 @@ def check_attendance():
             upsert=True
         )
         
-        # 7. 응답
-        message = "재인식되었습니다" if is_recheck and can_recheck else "출석이 체크되었습니다"
+        # 6. 응답
+        message = "출석이 체크되었습니다"
+        if is_recheck:
+            if existing_record and existing_record.get("status") != "출석":
+                message = f"{existing_record.get('status', '결석')}에서 출석으로 변경되었습니다"
+            else:
+                message = f"재인식되었습니다 (재인식 #{recheck_count}회)"
         
         return jsonify({
             "success": True, 
@@ -840,9 +846,10 @@ def check_attendance():
                 "week_id": attendance_record["week_id"],
                 "status": attendance_record["status"],
                 "student_name": student["name"],
-                "expires_at": expires_at.isoformat() if expires_at else None,
-                "is_recheck": is_recheck and can_recheck,
-                "can_recheck_again": False,  # 재인식은 한번만
+                "expires_at": expires_at.isoformat(),
+                "is_recheck": is_recheck,
+                "recheck_count": recheck_count,
+                "can_recheck_again": True,  # 재인식 제한 없음
                 "first_check_time": attendance_record["first_check_time"].isoformat()
             }
         })
@@ -852,7 +859,7 @@ def check_attendance():
 
 @app.route('/api/attendance/process-auto-absent', methods=['POST', 'GET'])
 def process_auto_absent():
-    """15분 내 재인식 없으면 결석 처리 (재인식 1회만)"""
+    """15분 내 재인식 없으면 결석 처리 (재인식 제한 없음)"""
     try:
         db = get_db()
         if db is None:
@@ -865,19 +872,20 @@ def process_auto_absent():
         # 1. 상태가 "출석"
         # 2. 만료 시간 지남  
         # 3. 아직 자동 처리 안됨
-        # 4. 재인식 안했음 (has_rechecked == False)
         expired_records = list(db.attendance.find({
             "status": "출석",
             "expires_at": {"$lt": now},
-            "is_auto_absent_processed": False,
-            "has_rechecked": False  # 재인식 안한 것만
+            "is_auto_absent_processed": False
         }))
         
-        print(f"📊 재인식 없는 만료 기록: {len(expired_records)}개")
+        print(f"📊 만료된 출석 기록: {len(expired_records)}개")
         
         processed_count = 0
         for record in expired_records:
             try:
+                # 재인식 횟수 확인
+                recheck_count = record.get("recheck_count", 0)
+                
                 # 결석 처리
                 result = db.attendance.update_one(
                     {"_id": record["_id"]},
@@ -887,16 +895,14 @@ def process_auto_absent():
                             "is_auto_absent_processed": True,
                             "auto_processed_at": now,
                             "last_updated": now,
-                            "notes": f"{record.get('notes', '')}\n[15분 내 재인식 없음, 자동 결석 처리 ({now.strftime('%H:%M:%S')})]"
+                            "notes": f"{record.get('notes', '')}\n[15분 내 재인식 없음, 자동 결석 처리 ({now.strftime('%H:%M:%S')}) - 재인식 횟수: {recheck_count}]"
                         }
                     }
                 )
                 
                 if result.modified_count > 0:
                     processed_count += 1
-                    print(f"✓ {record['student_id']} (주차 {record['week_id']}) → 결석")
-                    print(f"  첫 인식: {record.get('first_check_time', '알수없음')}")
-                    print(f"  재인식: {'있음' if record.get('has_rechecked') else '없음'}")
+                    print(f"✓ {record['student_id']} (주차 {record['week_id']}) → 결석 (재인식 {recheck_count}회)")
                     
             except Exception as e:
                 print(f"❌ 처리 실패: {e}")
@@ -905,7 +911,7 @@ def process_auto_absent():
         
         return jsonify({
             "success": True,
-            "message": f"{processed_count}건 자동 결석 처리됨 (재인식 없음)",
+            "message": f"{processed_count}건 자동 결석 처리됨",
             "data": {
                 "processed_count": processed_count,
                 "timestamp": now.isoformat(),
@@ -957,13 +963,14 @@ def get_recheck_status(student_id, week):
                 "student_id": student_id,
                 "week_id": week,
                 "status": record["status"],
-                "has_rechecked": record.get("has_rechecked", False),
-                "can_recheck": not record.get("has_rechecked", False) and record["status"] == "출석",
+                "recheck_count": record.get("recheck_count", 0),
+                "can_recheck": True,  # 재인식 제한 없음
                 "expires_at": expires_at.isoformat() if expires_at else None,
                 "minutes_remaining": round(minutes_left, 1),
                 "is_expired": minutes_left <= 0,
                 "first_check_time": record.get("first_check_time", "").isoformat() if record.get("first_check_time") else None,
-                "recheck_time": record.get("recheck_time", "").isoformat() if record.get("recheck_time") else None
+                "last_recheck_time": record.get("recheck_time", "").isoformat() if record.get("recheck_time") else None,
+                "is_auto_absent_processed": record.get("is_auto_absent_processed", False)
             }
         })
         
