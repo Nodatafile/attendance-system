@@ -767,7 +767,7 @@ def get_attendance():
 
 @app.route('/api/attendance/check', methods=['POST'])
 def check_attendance():
-    """출석 체크 - 타임어택 로직 수정 버전"""
+    """출석 체크 - 타임어택 로직 (수정 버전)"""
     try:
         data = request.get_json()
         if not data:
@@ -810,13 +810,12 @@ def check_attendance():
             "week_id": week_id
         })
 
-        if existing_record is None:
-            # 첫 인식
+        # 첫 인식 판정: 기록이 없거나 recheck_count가 없거나 0일 때
+        if existing_record is None or existing_record.get("recheck_count", 0) == 0:
             recheck_count = 1
             first_check_time = now
             is_first_check = True
         else:
-            # 재인식
             current_count = existing_record.get("recheck_count", 1)
             recheck_count = current_count + 1
             first_check_time = existing_record.get("first_check_time", now)
@@ -851,7 +850,7 @@ def check_attendance():
             "is_auto_absent_processed": False,
             "recheck_count": recheck_count,
             "first_check_time": first_check_time,
-            "recheck_time": now if not is_first_check else None,
+            "recheck_time": None if is_first_check else now,
             "last_updated": now,
             "notes": f"{recheck_count}회차 - {'재인식' if recheck_count > 1 else '첫인식'}"
         }
@@ -901,6 +900,7 @@ def check_attendance():
         import traceback
         traceback.print_exc()
         return jsonify({"success": False, "error": "SERVER_ERROR", "message": str(e)}), 500
+
 
         
 @app.route('/api/attendance/process-auto-absent', methods=['POST', 'GET'])
