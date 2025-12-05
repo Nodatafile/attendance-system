@@ -155,10 +155,14 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-01", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),
+                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now
+                "last_updated": now,
+                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
+                "first_check_time": now,
+                "recheck_time": None,
+                "notes": "샘플 데이터 - 첫 인식"
             },
             {
                 "student_id": 2022322035, 
@@ -166,10 +170,14 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-01", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),
+                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now
+                "last_updated": now,
+                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
+                "first_check_time": now,
+                "recheck_time": None,
+                "notes": "샘플 데이터 - 첫 인식"
             },
             {
                 "student_id": 2023205106, 
@@ -177,10 +185,14 @@ def initialize_database():
                 "status": "지각", 
                 "date": "2024-03-01", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),
+                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
                 "is_auto_absent_processed": False,
-                "original_status": "지각",
-                "last_updated": now
+                "original_status": "출석",
+                "last_updated": now,
+                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
+                "first_check_time": now,
+                "recheck_time": None,
+                "notes": "샘플 데이터 - 첫 인식"
             },
             {
                 "student_id": 2023321012, 
@@ -188,10 +200,14 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-01", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),
+                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now
+                "last_updated": now,
+                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
+                "first_check_time": now,
+                "recheck_time": None,
+                "notes": "샘플 데이터 - 첫 인식"
             },
             {
                 "student_id": 2024405040, 
@@ -199,10 +215,14 @@ def initialize_database():
                 "status": "결석", 
                 "date": "2024-03-01", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),
+                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
                 "is_auto_absent_processed": False,
-                "original_status": "결석",
-                "last_updated": now
+                "original_status": "출석",
+                "last_updated": now,
+                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
+                "first_check_time": now,
+                "recheck_time": None,
+                "notes": "샘플 데이터 - 첫 인식"
             },
             
             # 2주차
@@ -212,10 +232,14 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-08", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),
+                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now
+                "last_updated": now,
+                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
+                "first_check_time": now,
+                "recheck_time": None,
+                "notes": "샘플 데이터 - 첫 인식"
             },
             {
                 "student_id": 2022322035, 
@@ -223,10 +247,14 @@ def initialize_database():
                 "status": "조퇴", 
                 "date": "2024-03-08", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),
+                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
                 "is_auto_absent_processed": False,
-                "original_status": "조퇴",
-                "last_updated": now
+                "original_status": "출석",
+                "last_updated": now,
+                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
+                "first_check_time": now,
+                "recheck_time": None,
+                "notes": "샘플 데이터 - 첫 인식"
             },
             {
                 "student_id": 2023205106, 
@@ -234,10 +262,14 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-08", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),
+                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now
+                "last_updated": now,
+                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
+                "first_check_time": now,
+                "recheck_time": None,
+                "notes": "샘플 데이터 - 첫 인식"
             },
             {
                 "student_id": 2023321012, 
@@ -245,10 +277,14 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-08", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),
+                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now
+                "last_updated": now,
+                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
+                "first_check_time": now,
+                "recheck_time": None,
+                "notes": "샘플 데이터 - 첫 인식"
             },
             {
                 "student_id": 2024405040, 
@@ -256,10 +292,14 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-08", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),
+                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now
+                "last_updated": now,
+                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
+                "first_check_time": now,
+                "recheck_time": None,
+                "notes": "샘플 데이터 - 첫 인식"
             },
             
             # 3주차
@@ -269,10 +309,14 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-15", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),
+                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now
+                "last_updated": now,
+                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
+                "first_check_time": now,
+                "recheck_time": None,
+                "notes": "샘플 데이터 - 첫 인식"
             },
             {
                 "student_id": 2022322035, 
@@ -280,10 +324,14 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-15", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),
+                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now
+                "last_updated": now,
+                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
+                "first_check_time": now,
+                "recheck_time": None,
+                "notes": "샘플 데이터 - 첫 인식"
             },
             {
                 "student_id": 2023205106, 
@@ -291,10 +339,14 @@ def initialize_database():
                 "status": "결석", 
                 "date": "2024-03-15", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),
+                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
                 "is_auto_absent_processed": False,
-                "original_status": "결석",
-                "last_updated": now
+                "original_status": "출석",
+                "last_updated": now,
+                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
+                "first_check_time": now,
+                "recheck_time": None,
+                "notes": "샘플 데이터 - 첫 인식"
             },
             {
                 "student_id": 2023321012, 
@@ -302,10 +354,14 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-15", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),
+                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now
+                "last_updated": now,
+                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
+                "first_check_time": now,
+                "recheck_time": None,
+                "notes": "샘플 데이터 - 첫 인식"
             },
             {
                 "student_id": 2024405040, 
@@ -313,10 +369,14 @@ def initialize_database():
                 "status": "출석", 
                 "date": "2024-03-15", 
                 "timestamp": now,
-                "expires_at": now + timedelta(minutes=15),
+                "expires_at": None,  # ★ 첫 인식은 타임어택 없음 ★
                 "is_auto_absent_processed": False,
                 "original_status": "출석",
-                "last_updated": now
+                "last_updated": now,
+                "recheck_count": 0,  # ★ 첫 인식: 0회 ★
+                "first_check_time": now,
+                "recheck_time": None,
+                "notes": "샘플 데이터 - 첫 인식"
             }
         ]
         
@@ -760,57 +820,25 @@ def check_attendance():
             # 첫 인식 시간 유지
             first_check_time = existing_record.get("first_check_time", now)
             
-            # ★★★ 핵심 로직 수정 ★★★
-            # 이미 자동 결석 처리된 경우
-            if existing_record.get("is_auto_absent_processed", False):
-                status = "출석"
-                # 새 사이클 시작: 짝수번째 재인식이면 타임어택
-                if recheck_count % 2 == 0:  # 2,4,6...
-                    expires_at = now + timedelta(minutes=15)
-                # 홀수번째 재인식이면 타임어택 없음
-                else:
-                    expires_at = None
+            # ★★★ 단순화된 로직 ★★★
+            # 현재 상태 가져오기
+            current_status = existing_record.get("status", "출석")
             
+            # 지각/조퇴/공결/결석 상태면 타임어택 없음, 상태 유지
+            if current_status in ["지각", "조퇴", "공결", "결석"]:
+                status = current_status
+                expires_at = None
             else:
-                # 현재 상태 가져오기
-                current_status = existing_record.get("status", "출석")
-                
-                # 지각/조퇴/공결 상태면 타임어택 없음
-                if current_status in ["지각", "조퇴", "공결"]:
-                    status = current_status
-                    expires_at = None
-                
                 # 출석 상태인 경우
-                elif current_status == "출석":
-                    status = "출석"
-                    
-                    # ★★★ 짝수번째 재인식에서만 타임어택 시작 ★★★
-                    # recheck_count: 0(첫인식), 1, 2, 3, 4...
-                    # 0,1번째: 타임어택 없음
-                    # 2번째: 타임어택 시작 (15분)
-                    # 3번째: 타임어택 없음
-                    # 4번째: 타임어택 시작 (15분)
-                    # 5번째: 타임어택 없음 ... 반복
-                    
-                    if recheck_count % 2 == 0 and recheck_count >= 2:
-                        # 짝수번째 재인식(2,4,6...): 타임어택 시작
-                        expires_at = now + timedelta(minutes=15)
-                        print(f"🚨 타임어택 시작: {student['name']} - {recheck_count}회 재인식")
-                    
-                    else:
-                        # 홀수번째 재인식(1,3,5...): 타임어택 없음
-                        # 또는 0번째(첫인식)
-                        expires_at = None
-                        
-                        # 기존 타임어택이 있었다면 제거 (이전 짝수번째에서 시작했던 타임어택)
-                        if existing_record.get("expires_at"):
-                            print(f"✅ 타임어택 해제: {student['name']} - {recheck_count}회 재인식")
+                status = "출석"
                 
-                else:  # 결석 상태
-                    status = "출석"  # 재인식하면 출석으로 변경
-                    # 짝수번째 재인식이면 타임어택 시작
-                    if recheck_count % 2 == 0 and recheck_count >= 2:
-                        expires_at = now + timedelta(minutes=15)
+                # ★★★ 핵심: 짝수번째 재인식(2,4,6...)에서만 타임어택 ★★★
+                if recheck_count >= 2 and recheck_count % 2 == 0:
+                    # 짝수번째 재인식: 타임어택 시작
+                    expires_at = now + timedelta(minutes=15)
+                else:
+                    # 홀수번째 재인식 또는 0,1회: 타임어택 없음
+                    expires_at = None
         
         else:
             # 첫 인식
@@ -818,7 +846,7 @@ def check_attendance():
             recheck_count = 0
             status = "출석"
             expires_at = None  # 첫 인식은 타임어택 없음
-        
+                
         # 3. 출석 기록 생성/수정
         attendance_record = {
             "student_id": data['student_id'],
@@ -835,7 +863,6 @@ def check_attendance():
             "first_check_time": first_check_time,
             "recheck_time": now if is_recheck else None,
             "timelock_cycle": recheck_count // 2 if recheck_count >= 2 else 0,  # 타임어택 사이클 번호
-            "is_in_timelock": expires_at is not None,  # 현재 타임어택 중인지
             "notes": existing_record.get("notes", "") if existing_record else ""
         }
         
@@ -923,74 +950,53 @@ def process_auto_absent():
         now = datetime.now()
         print(f"[{now.isoformat()}] 자동 결석 처리 시작")
         
-        # ★★★ 조건: 짝수번째 재인식에서 시작된 타임어택만 처리 ★★★
-        # 1. 상태가 "출석"
-        # 2. 타임어택 중인 경우 (expires_at 존재)
-        # 3. 만료시간 지남
-        # 4. 아직 자동 처리 안됨
-        # 5. 짝수번째 재인식인 경우 (2,4,6...)
+         # ★★★ 조건: 짝수번째 재인식(2,4,6...)에서 시작된 타임어택 ★★★
         expired_records = list(db.attendance.find({
             "status": "출석",
             "expires_at": {"$exists": True, "$lt": now},
-            "is_auto_absent_processed": False,
-            "is_in_timelock": True  # 타임어택 중인 기록만
+            "is_auto_absent_processed": False
         }))
         
-        print(f"📊 타임어택 만료된 기록: {len(expired_records)}개")
+         # 추가 필터링: 짝수번째 재인식인지 확인
+        records_to_process = []
+        for record in expired_records:
+            recheck_count = record.get("recheck_count", 0)
+            # 2,4,6... 짝수번째 재인식이면서 타임어택 만료된 경우
+            if recheck_count >= 2 and recheck_count % 2 == 0:
+                records_to_process.append(record)
         
         processed_count = 0
-        for record in expired_records:
+        for record in records_to_process:
             try:
-                recheck_count = record.get("recheck_count", 0)
-                timelock_cycle = record.get("timelock_cycle", 0)
-                expires_at = record.get("expires_at")
-                
-                # ★★★ 짝수번째 재인식에서 시작된 타임어택인지 확인 ★★★
-                # recheck_count가 2,4,6... 이어야 함
-                if recheck_count % 2 == 0 and recheck_count >= 2:
-                    # 만료 시간 계산
-                    time_over = (now - expires_at).total_seconds() / 60
-                    
-                    # 결석 처리
-                    result = db.attendance.update_one(
-                        {"_id": record["_id"]},
-                        {
-                            "$set": {
-                                "status": "결석",
-                                "is_auto_absent_processed": True,
-                                "auto_processed_at": now,
-                                "last_updated": now,
-                                "notes": f"{record.get('notes', '')}\n[🚨 타임어택 만료! {expires_at.strftime('%H:%M:%S')}까지 재인식 없음 → 자동 결석 (사이클 {timelock_cycle}, 재인식 {recheck_count}회, 지연 {time_over:.1f}분)]"
-                            }
+                result = db.attendance.update_one(
+                    {"_id": record["_id"]},
+                    {
+                        "$set": {
+                            "status": "결석",
+                            "is_auto_absent_processed": True,
+                            "auto_processed_at": now,
+                            "notes": f"{record.get('notes', '')}\n[짝수번째 재인식({record.get('recheck_count', 0)}회) 후 15분 내 재인식 없음 → 결석]"
                         }
-                    )
-                    
-                    if result.modified_count > 0:
-                        processed_count += 1
-                        print(f"✓ {record['student_id']} (주차 {record['week_id']}) → 결석")
-                        print(f"  사이클: {timelock_cycle}, 재인식: {recheck_count}회, 지연: {time_over:.1f}분")
+                    }
+                )
                 
+                if result.modified_count > 0:
+                    processed_count += 1
+                    
             except Exception as e:
-                print(f"❌ 처리 실패: {e}")
-        
-        print(f"✅ 완료: {processed_count}건 자동 결석 처리됨")
+                print(f"처리 실패: {e}")
         
         return jsonify({
             "success": True,
             "message": f"{processed_count}건 자동 결석 처리됨",
             "data": {
                 "processed_count": processed_count,
-                "timestamp": now.isoformat(),
-                "condition": "짝수번째 재인식(2,4,6...) 후 15분 내 재인식 없음"
+                "timestamp": now.isoformat()
             }
         })
         
     except Exception as e:
-        print(f"❌ 오류: {e}")
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/attendance/recheck-status/<int:student_id>/<int:week>', methods=['GET'])
 def get_recheck_status(student_id, week):
