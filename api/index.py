@@ -408,7 +408,7 @@ def home():
         "message": "🎓 출석 관리 시스템 API",
         "status": "작동중",
         "timestamp": datetime.now().isoformat(),
-        "version": "1.0.0"
+        "version": "1.0.1"
     })
 
 @app.route('/api/test-db', methods=['GET'])
