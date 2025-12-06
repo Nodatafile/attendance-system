@@ -830,7 +830,7 @@ def check_attendance():
         
         status = "출석"
         
-       if recheck_count == 1:
+        if recheck_count == 1:
             # 첫 인식 완료
             message = "출석이 체크되었습니다 (첫 인식)"
             expires_at = None
