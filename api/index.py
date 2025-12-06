@@ -823,35 +823,35 @@ def check_attendance():
         # ★★★ 명확한 타임어택 로직 ★★★
         # recheck_count 기준:
         # 1: 첫 인식 완료 → 타임어택 ❌ 없음
-        # 2: 재인식 1회 → 타임어택 ❌ 없음 (짝수)
-        # 3: 재인식 2회 → 타임어택 ⏰ 있음 (홀수, 15분)
-        # 4: 재인식 3회 → 타임어택 ❌ 없음 (짝수)
-        # 5: 재인식 4회 → 타임어택 ⏰ 있음 (홀수, 15분)
+        # 2: 재인식 1회 → 타임어택 ⏰ 있음 (짝수, 15분)
+        # 3: 재인식 2회 → 타임어택 ❌ 없음 (홀수)
+        # 4: 재인식 3회 → 타임어택 ⏰ 있음 (짝수, 15분)
+        # 5: 재인식 4회 → 타임어택 ❌ 없음 (홀수)
         
         status = "출석"
         
-        if recheck_count == 1:
+       if recheck_count == 1:
             # 첫 인식 완료
             message = "출석이 체크되었습니다 (첫 인식)"
             expires_at = None
             has_time_limit = False
             should_set_expires_at = False
-        elif recheck_count % 2 == 1:  # 홀수: 3,5,7...
-            # 홀수번째 재인식 → 타임어택 있음
+        elif recheck_count % 2 == 0:  # 수정: 짝수일 때 타임어택 있음 (2,4,6...)
+            # 짝수번째 재인식 → 타임어택 있음
             message = f"재인식되었습니다 (재인식 #{recheck_count}회) - 🚨 15분 내 재인식 필요!"
             expires_at = now + timedelta(minutes=15)
             has_time_limit = True
             should_set_expires_at = True
-        else:  # 짝수: 2,4,6...
-            # 짝수번째 재인식 → 타임어택 없음
+        else:  # 홀수일 때 (3,5,7...)
+            # 홀수번째 재인식 → 타임어택 없음
             message = f"재인식되었습니다 (재인식 #{recheck_count}회) - 타임어택 해제됨"
             expires_at = None
             has_time_limit = False
             should_set_expires_at = False
         
-        # ★★★ 디버그 로그 ★★★
+        # ★★★ 디버그 로그 업데이트 ★★★
         print(f"\n{'='*60}")
-        print(f"🎯 출석 체크 - 타임어택 로직 디버그")
+        print(f"🎯 출석 체크 - 수정된 타임어택 로직")
         print(f"{'='*60}")
         print(f"학생: {student_id}, 주차: {week_id}")
         print(f"기존 기록: {'있음' if existing_record else '없음'}")
@@ -860,7 +860,7 @@ def check_attendance():
         print(f"새 recheck_count: {recheck_count}")
         print(f"홀수/짝수: {'홀수' if recheck_count % 2 == 1 else '짝수'}")
         print(f"첫 인식 여부: {is_first_check}")
-        print(f"타임어택 계산: has_time_limit={has_time_limit}")
+        print(f"타임어택 계산: has_time_limit={has_time_limit} (짝수=true)")
         print(f"expires_at 설정: {expires_at}")
         print(f"should_set_expires_at: {should_set_expires_at}")
         print(f"메시지: {message}")
@@ -935,7 +935,7 @@ def check_attendance():
         
 @app.route('/api/attendance/process-auto-absent', methods=['POST', 'GET'])
 def process_auto_absent():
-    """홀수번째 재인식(1,3,5...) 후 15분 내 재인식 없으면 결석 처리"""
+    """짝수번째 재인식(2,4,6...) 후 15분 내 재인식 없으면 결석 처리"""
     try:
         db = get_db()
         if db is None:
@@ -943,7 +943,7 @@ def process_auto_absent():
         
         now = datetime.now()
         
-        # ★★★ 조건: 홀수번째 재인식(1,3,5...)에서 시작된 타임어택 ★★★
+        # ★★★ 조건 수정: 짝수번째 재인식(2,4,6...)에서 시작된 타임어택 ★★★
         expired_records = list(db.attendance.find({
             "status": "출석",
             "expires_at": {"$exists": True, "$lt": now},
@@ -955,8 +955,8 @@ def process_auto_absent():
             try:
                 recheck_count = record.get("recheck_count", 0)
                 
-                # ★★★ 홀수번째 재인식인지 확인 (1,3,5...) ★★★
-                if recheck_count > 0 and recheck_count % 2 == 1:
+                # ★★★ 짝수번째 재인식인지 확인 (2,4,6...) ★★★
+                if recheck_count > 1 and recheck_count % 2 == 0:
                     expires_at = record.get("expires_at")
                     time_over = (now - expires_at).total_seconds() / 60
                     
@@ -967,7 +967,7 @@ def process_auto_absent():
                                 "status": "결석",
                                 "is_auto_absent_processed": True,
                                 "auto_processed_at": now,
-                                "notes": f"{record.get('notes', '')}\n[⏰ 홀수회차({recheck_count}회) 타임어택 만료 → 자동 결석]"
+                                "notes": f"{record.get('notes', '')}\n[⏰ 짝수회차({recheck_count}회) 타임어택 만료 → 자동 결석]"
                             }
                         }
                     )
@@ -984,7 +984,7 @@ def process_auto_absent():
             "data": {
                 "processed_count": processed_count,
                 "timestamp": now.isoformat(),
-                "condition": "홀수번째 재인식(1,3,5...) 후 15분 내 재인식 없음"
+                "condition": "짝수번째 재인식(2,4,6...) 후 15분 내 재인식 없음"
             }
         })
         
@@ -1030,10 +1030,10 @@ def get_recheck_status(student_id, week):
         # 예상되는 타임어택 (로직에 맞게)
         if recheck_count == 1:
             expected_has_timelock = False  # 첫 인식: 없음
-        elif recheck_count % 2 == 1:
-            expected_has_timelock = True   # 홀수: 있음
+        elif recheck_count % 2 == 0:
+            expected_has_timelock = True   # 짝수: 있음
         else:
-            expected_has_timelock = False  # 짝수: 없음
+            expected_has_timelock = False  # 홀수: 없음
         
         return jsonify({
             "success": True,
@@ -1055,7 +1055,7 @@ def get_recheck_status(student_id, week):
                 "is_auto_absent_processed": record.get("is_auto_absent_processed", False)
             },
             "pattern_info": {
-                "description": f"{recheck_count}회 - {'첫인식' if recheck_count == 1 else '홀수-타임어택' if recheck_count % 2 == 1 else '짝수-해제'}",
+                "description": f"{recheck_count}회 - {'첫인식' if recheck_count == 1 else '짝수-타임어택' if recheck_count % 2 == 1 else '홀수-해제'}",
                 "match": has_active_timelock == expected_has_timelock
             }
         })
@@ -1084,22 +1084,22 @@ def debug_timelock_test():
         test_scenarios = []
         
         # 다양한 recheck_count 시나리오 테스트
-        for recheck_count in [1, 2, 3, 4, 5]:
-            is_odd = recheck_count % 2 == 1
+         for recheck_count in [1, 2, 3, 4, 5]:
+            is_even = recheck_count % 2 == 0  # 수정: 짝수 체크
             
             if recheck_count == 1:
                 expected_timelock = False
                 desc = "첫인식-없음"
-            elif is_odd:
+            elif is_even:  # 수정: 짝수일 때 타임어택 있음
                 expected_timelock = True
-                desc = f"홀수({recheck_count})-있음"
+                desc = f"짝수({recheck_count})-있음"
             else:
                 expected_timelock = False
-                desc = f"짝수({recheck_count})-없음"
+                desc = f"홀수({recheck_count})-없음"
             
             test_scenarios.append({
                 "recheck_count": recheck_count,
-                "is_odd": is_odd,
+                "is_even": is_even,  # 수정
                 "expected_timelock": expected_timelock,
                 "description": desc
             })
@@ -1113,10 +1113,10 @@ def debug_timelock_test():
                 "has_timelock_field": "expires_at" in record if record else False
             },
             "timelock_logic": {
-                "rule": "recheck_count 기준: 1=첫인식(없음), 홀수=있음, 짝수=없음",
+                "rule": "recheck_count 기준: 1=첫인식(없음), 짝수=있음, 홀수=없음",  # 수정
                 "examples": test_scenarios
             },
-            "note": "타임어택은 recheck_count가 홀수(3,5,7...)일 때만 설정됨"
+            "note": "타임어택은 recheck_count가 짝수(2,4,6...)일 때만 설정됨"
         })
         
     except Exception as e:
