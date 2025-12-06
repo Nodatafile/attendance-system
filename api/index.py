@@ -795,22 +795,27 @@ def process_auto_absent():
         
         now = datetime.now()
         
-        # ★★★ 조건: 짝수번째 재인식(2,4,6...)에서 시작된 타임어택 ★★★
+        # 만료된 타임어택 찾기
         expired_records = list(db.attendance.find({
             "status": "출석",
             "expires_at": {"$exists": True, "$lt": now},
             "is_auto_absent_processed": False
         }))
         
+        print(f"🔍 처리 대상 레코드: {len(expired_records)}건")
+        for record in expired_records:
+            print(f"   - 학생: {record.get('student_id')}, 주차: {record.get('week_id')}, recheck_count: {record.get('recheck_count')}")
+        
         processed_count = 0
+        failed_count = 0
+        
         for record in expired_records:
             try:
                 recheck_count = record.get("recheck_count", 0)
                 
-                # ★★★ 짝수번째 재인식인지 확인 (2,4,6...) ★★★
+                # 짝수번째 재인식인지 확인 (2,4,6...)
                 if recheck_count > 1 and recheck_count % 2 == 0:
                     expires_at = record.get("expires_at")
-                    time_over = (now - expires_at).total_seconds() / 60
                     
                     result = db.attendance.update_one(
                         {"_id": record["_id"]},
@@ -819,22 +824,37 @@ def process_auto_absent():
                                 "status": "결석",
                                 "is_auto_absent_processed": True,
                                 "auto_processed_at": now,
-                                "notes": f"{record.get('notes', '')}\n[⏰ 짝수회차({recheck_count}회) 타임어택 만료 → 자동 결석]"
+                                "notes": f"{record.get('notes', '')}\n[⏰ {recheck_count}회차 타임어택 만료 ({expires_at}) → 자동 결석]"
                             }
                         }
                     )
                     
                     if result.modified_count > 0:
                         processed_count += 1
+                        print(f"✅ 자동 결석 처리됨: 학생 {record.get('student_id')}, 주차 {record.get('week_id')}")
+                    else:
+                        failed_count += 1
+                else:
+                    print(f"⚠️ 조건 불일치: recheck_count={recheck_count} (짝수 아님)")
                         
             except Exception as e:
-                print(f"처리 실패: {e}")
+                print(f"❌ 처리 실패: {e}")
+                failed_count += 1
+        
+        # 처리된 레코드 다시 확인
+        if processed_count > 0:
+            processed_records = list(db.attendance.find({
+                "auto_processed_at": {"$exists": True, "$gte": now - timedelta(seconds=10)}
+            }))
+            print(f"📊 실제 처리 확인: {len(processed_records)}건")
         
         return jsonify({
             "success": True,
-            "message": f"{processed_count}건 자동 결석 처리됨",
+            "message": f"자동 결석 처리 완료",
             "data": {
+                "total_expired": len(expired_records),
                 "processed_count": processed_count,
+                "failed_count": failed_count,
                 "timestamp": now.isoformat(),
                 "condition": "짝수번째 재인식(2,4,6...) 후 15분 내 재인식 없음"
             }
@@ -969,6 +989,60 @@ def debug_timelock_test():
                 "examples": test_scenarios
             },
             "note": "타임어택은 recheck_count가 짝수(2,4,6...)일 때만 설정됨"
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/debug/auto-process-status', methods=['GET'])
+def debug_auto_process_status():
+    """자동 처리 상태 디버깅"""
+    try:
+        db = get_db()
+        if db is None:
+            return jsonify({"success": False, "error": "DATABASE_ERROR"}), 500
+        
+        now = datetime.now()
+        
+        # 현재 상태 확인
+        all_records = list(db.attendance.find({}))
+        
+        status_summary = {
+            "total": len(all_records),
+            "by_status": {},
+            "with_expires_at": 0,
+            "expired_not_processed": 0,
+            "auto_processed": 0
+        }
+        
+        for record in all_records:
+            status = record.get("status", "unknown")
+            status_summary["by_status"][status] = status_summary["by_status"].get(status, 0) + 1
+            
+            if "expires_at" in record:
+                status_summary["with_expires_at"] += 1
+                
+                if record["expires_at"] < now and not record.get("is_auto_absent_processed", False):
+                    status_summary["expired_not_processed"] += 1
+            
+            if record.get("is_auto_absent_processed", False):
+                status_summary["auto_processed"] += 1
+        
+        # 만료되었지만 처리되지 않은 레코드
+        expired_not_processed = list(db.attendance.find({
+            "expires_at": {"$exists": True, "$lt": now},
+            "is_auto_absent_processed": False
+        }))
+        
+        return jsonify({
+            "success": True,
+            "summary": status_summary,
+            "expired_not_processed": len(expired_not_processed),
+            "now": now.isoformat(),
+            "debug_info": {
+                "query_condition": "expires_at < now AND is_auto_absent_processed = False",
+                "match_count": len(expired_not_processed)
+            }
         })
         
     except Exception as e:
