@@ -767,7 +767,7 @@ def get_attendance():
 
 @app.route('/api/attendance/check', methods=['POST'])
 def check_attendance():
-    """출석 체크 - 타임어택 로직 (수정 버전)"""
+    """출석 체크 - 타임어택 로직 """
     try:
         data = request.get_json()
         if not data:
